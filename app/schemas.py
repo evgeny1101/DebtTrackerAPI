@@ -52,7 +52,7 @@ class DebtUpdate(BaseModel):
 
 
 class DebtUpdateCurrentAmount(BaseModel):
-    amount: int
+    amount: int = Field(..., ge=0)
 
 
 class DebtUpdateReminderTimestamp(BaseModel):
