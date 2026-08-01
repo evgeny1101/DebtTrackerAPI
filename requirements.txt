@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+alembic
+pydantic
+passlib[bcrypt]
+bcrypt<5
+python-jose[cryptography]
+slowapi

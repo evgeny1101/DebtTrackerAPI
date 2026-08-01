@@ -1,0 +1,23 @@
+[project]
+name = "debttracker-api"
+version = "0.1.0"
+description = "REST API for DebtTracker Android app"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "sqlalchemy",
+    "alembic",
+    "pydantic",
+    "passlib[bcrypt]",
+    "bcrypt<5",
+    "python-jose[cryptography]",
+    "slowapi",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8", "httpx>=0.27"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
