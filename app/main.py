@@ -29,7 +29,8 @@ async def lifespan(app: FastAPI):
     if JWT_SECRET == "dev-secret-change-me":
         warnings.warn(
             "JWT_SECRET is set to default 'dev-secret-change-me'. "
-            "Generate a real secret with: openssl rand -hex 32"
+            "Generate a real secret with: openssl rand -hex 32",
+            stacklevel=2,
         )
 
     yield

@@ -4,3 +4,4 @@ data/
 .env
 *.pyc
 *.pyo
+.ruff_cache/

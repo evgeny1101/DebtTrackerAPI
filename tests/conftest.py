@@ -1,4 +1,5 @@
 import os
+import contextlib
 
 TEST_DB_PATH = "/tmp/debts_test.db"
 os.environ["DATABASE_URL"] = f"sqlite:///{TEST_DB_PATH}"
@@ -24,10 +25,8 @@ def setup_db():
 @pytest.fixture(scope="session", autouse=True)
 def cleanup_temp_db():
     yield
-    try:
+    with contextlib.suppress(OSError):
         os.unlink(TEST_DB_PATH)
-    except OSError:
-        pass
 
 
 @pytest.fixture

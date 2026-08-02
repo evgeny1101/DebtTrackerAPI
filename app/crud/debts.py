@@ -58,11 +58,7 @@ def update_debt(db: Session, debt_id: int, user_id: int, data: DebtUpdate) -> De
 
     old_initial = debt.initialAmount
     old_current = debt.currentAmount
-
-    if old_initial > 0:
-        paid = max(0, old_initial - old_current)
-    else:
-        paid = 0
+    paid = max(0, old_initial - old_current) if old_initial > 0 else 0
 
     new_initial = data.initialAmount
     new_current = max(0, new_initial - paid)

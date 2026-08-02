@@ -37,6 +37,10 @@ openssl rand -hex 32
 | `docker compose exec api alembic upgrade head` | Apply migrations manually |
 | `docker compose exec api python -c "..."` | Run Python inside container |
 | `docker compose exec api python -m pytest tests/ -v` | Run test suite (41 tests) |
+| `docker compose exec api ruff check .` | Lint all Python files |
+| `docker compose exec api ruff check --fix .` | Auto-fix lint issues |
+| `docker compose exec api ruff format --check .` | Check formatting |
+| `docker compose exec api ruff format .` | Auto-format all Python files |
 
 Migrations run automatically on container start via `entrypoint.sh` — no manual steps needed for schema creation.
 
