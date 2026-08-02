@@ -117,6 +117,7 @@ Request → Router (validates with Pydantic, extracts current_user from JWT)
 | Amounts | `int` / `BigInteger`, no floats |
 | Error format | `{"detail": "message"}` — FastAPI default |
 | HTTP status codes | 201 (created), 204 (no content), 400 (bad request), 401 (unauthorized), 404 (not found), 409 (conflict) |
+| Linting | Run `ruff check . && ruff format --check .` before every commit. Zero errors required |
 
 ---
 
