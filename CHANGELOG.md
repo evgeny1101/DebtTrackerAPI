@@ -39,6 +39,7 @@
 - 41 automated tests (pytest in Docker, temp-file SQLite DB)
 - Structured logging with `LOG_LEVEL` env variable
 - Ruff linter + formatter with project rules (0 errors)
+- GitHub Actions CI/CD: lint → test → build & push to ghcr.io on tag
 - OpenCode skills: `debttracker-check`, `debttracker-lint`
 - AGENTS.md with full project documentation
 - Swagger UI auto-generated docs

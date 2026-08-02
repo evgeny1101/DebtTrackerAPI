@@ -340,3 +340,34 @@ bcrypt<5          # Pinned for passlib 1.7.4 compat
 python-jose[cryptography]  # JWT
 slowapi           # Rate limiting
 ```
+
+---
+
+## CI/CD
+
+GitHub Actions workflow triggers on `git tag v*` (not on push to main):
+
+```
+git tag v0.1.0 → Lint (ruff) → Test (pytest, 41 tests) → Build & Push to ghcr.io
+```
+
+Docker images published at `ghcr.io/evgeny1101/debttrackerapi` with tags:
+- `:latest` — latest release
+- `:0.1.0` — specific version
+- `:0.1` — minor version
+
+### Release checklist
+
+```bash
+# 1. Update version in pyproject.toml
+# 2. Update CHANGELOG.md
+# 3. Commit and push to main
+git add -A && git commit -m "Release v0.1.0"
+git push origin main
+
+# 4. Tag and push — CI triggers automatically
+git tag v0.1.0 && git push origin v0.1.0
+
+# 5. (optional) Create GitHub Release
+gh release create v0.1.0 --title "v0.1.0" --notes-file CHANGELOG.md
+```

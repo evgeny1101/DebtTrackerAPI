@@ -7,3 +7,5 @@ data/
 *.pyo
 .DS_Store
 *.egg-info/
+.git/
+.github/
