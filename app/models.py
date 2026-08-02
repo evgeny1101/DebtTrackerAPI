@@ -1,5 +1,6 @@
-from sqlalchemy import Column, Integer, BigInteger, String, ForeignKey
+from sqlalchemy import BigInteger, Column, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
+
 from app.database import Base
 
 
@@ -12,7 +13,9 @@ class User(Base):
     createdAt = Column(BigInteger, nullable=False)
 
     debts = relationship("Debt", back_populates="user", cascade="all, delete-orphan")
-    refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan")
+    refresh_tokens = relationship(
+        "RefreshToken", back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 class RefreshToken(Base):

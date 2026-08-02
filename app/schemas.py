@@ -1,6 +1,6 @@
-from pydantic import BaseModel, ConfigDict, Field
 from enum import Enum
-from typing import Optional
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class DebtType(str, Enum):
@@ -40,15 +40,15 @@ class DebtCreate(BaseModel):
     name: str
     debtType: DebtType
     initialAmount: int = Field(..., gt=0)
-    createdAt: Optional[int] = None
-    reminderIntervalDays: Optional[int] = None
+    createdAt: int | None = None
+    reminderIntervalDays: int | None = None
 
 
 class DebtUpdate(BaseModel):
     name: str
     initialAmount: int = Field(..., gt=0)
-    createdAt: Optional[int] = None
-    reminderIntervalDays: Optional[int] = None
+    createdAt: int | None = None
+    reminderIntervalDays: int | None = None
 
 
 class DebtUpdateCurrentAmount(BaseModel):
@@ -66,15 +66,15 @@ class DebtResponse(BaseModel):
     initialAmount: int
     currentAmount: int
     createdAt: int
-    reminderIntervalDays: Optional[int] = None
-    lastReminderTimestamp: Optional[int] = None
+    reminderIntervalDays: int | None = None
+    lastReminderTimestamp: int | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class PaymentCreate(BaseModel):
     amount: int = Field(..., gt=0)
-    dateMillis: Optional[int] = None
+    dateMillis: int | None = None
 
 
 class PaymentResponse(BaseModel):

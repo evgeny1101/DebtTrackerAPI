@@ -1,6 +1,8 @@
 import logging
 import time
+
 from sqlalchemy.orm import Session
+
 from app.models import Debt
 from app.schemas import DebtCreate, DebtUpdate
 
@@ -15,11 +17,7 @@ def get_debts(db: Session, user_id: int, active_only: bool = False):
 
 
 def get_debt(db: Session, debt_id: int, user_id: int):
-    return (
-        db.query(Debt)
-        .filter(Debt.id == debt_id, Debt.userId == user_id)
-        .first()
-    )
+    return db.query(Debt).filter(Debt.id == debt_id, Debt.userId == user_id).first()
 
 
 def get_debts_with_reminders(db: Session, user_id: int):
@@ -74,14 +72,15 @@ def update_debt(db: Session, debt_id: int, user_id: int, data: DebtUpdate) -> De
     db.refresh(debt)
     logger.info(
         "Debt updated: id=%d initial=%d->%d current=%d",
-        debt.id, old_initial, new_initial, new_current,
+        debt.id,
+        old_initial,
+        new_initial,
+        new_current,
     )
     return debt
 
 
-def update_current_amount(
-    db: Session, debt_id: int, user_id: int, amount: int
-) -> Debt | None:
+def update_current_amount(db: Session, debt_id: int, user_id: int, amount: int) -> Debt | None:
     debt = get_debt(db, debt_id, user_id)
     if not debt:
         return None

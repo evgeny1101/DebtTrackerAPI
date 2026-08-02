@@ -1,21 +1,17 @@
 import logging
 import time
+
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
+
 from app.models import Debt, Payment
 from app.schemas import PaymentCreate
 
 logger = logging.getLogger(__name__)
 
 
-def record_payment(
-    db: Session, debt_id: int, user_id: int, data: PaymentCreate
-) -> Payment:
-    debt = (
-        db.query(Debt)
-        .filter(Debt.id == debt_id, Debt.userId == user_id)
-        .first()
-    )
+def record_payment(db: Session, debt_id: int, user_id: int, data: PaymentCreate) -> Payment:
+    debt = db.query(Debt).filter(Debt.id == debt_id, Debt.userId == user_id).first()
     if not debt:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Debt not found")
 
@@ -38,24 +34,17 @@ def record_payment(
     db.refresh(payment)
     logger.info(
         "Payment recorded: debt=%d payment=%d amount=%d remaining=%d",
-        debt_id, payment.id, data.amount, debt.currentAmount,
+        debt_id,
+        payment.id,
+        data.amount,
+        debt.currentAmount,
     )
     return payment
 
 
-def delete_payment(
-    db: Session, debt_id: int, payment_id: int, user_id: int
-) -> dict:
-    debt = (
-        db.query(Debt)
-        .filter(Debt.id == debt_id, Debt.userId == user_id)
-        .first()
-    )
-    payment = (
-        db.query(Payment)
-        .filter(Payment.id == payment_id, Payment.debtId == debt_id)
-        .first()
-    )
+def delete_payment(db: Session, debt_id: int, payment_id: int, user_id: int) -> dict:
+    debt = db.query(Debt).filter(Debt.id == debt_id, Debt.userId == user_id).first()
+    payment = db.query(Payment).filter(Payment.id == payment_id, Payment.debtId == debt_id).first()
 
     if not debt or not payment:
         raise HTTPException(
@@ -69,7 +58,10 @@ def delete_payment(
     db.commit()
     logger.info(
         "Payment deleted: payment=%d debt=%d restored=%d current=%d",
-        payment_id, debt_id, amount, debt.currentAmount,
+        payment_id,
+        debt_id,
+        amount,
+        debt.currentAmount,
     )
 
     return {
@@ -80,18 +72,10 @@ def delete_payment(
     }
 
 
-def get_payments_for_debt(
-    db: Session, debt_id: int, user_id: int
-) -> list[Payment]:
-    debt = (
-        db.query(Debt)
-        .filter(Debt.id == debt_id, Debt.userId == user_id)
-        .first()
-    )
+def get_payments_for_debt(db: Session, debt_id: int, user_id: int) -> list[Payment]:
+    debt = db.query(Debt).filter(Debt.id == debt_id, Debt.userId == user_id).first()
     if not debt:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Debt not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Debt not found")
 
     return (
         db.query(Payment)

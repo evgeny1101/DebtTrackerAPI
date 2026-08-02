@@ -1,17 +1,18 @@
-from contextlib import asynccontextmanager
 import time
 import warnings
+from contextlib import asynccontextmanager
 
-from sqlalchemy import text
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from slowapi.errors import RateLimitExceeded
 from slowapi import _rate_limit_exceeded_handler
-from app.database import Base, engine
+from slowapi.errors import RateLimitExceeded
+from sqlalchemy import text
+
 from app.config import JWT_SECRET
+from app.database import Base, engine
+from app.limiter import limiter
 from app.logging import setup_logging
 from app.routers import auth, debts, payments
-from app.limiter import limiter
 
 
 @asynccontextmanager
@@ -22,7 +23,7 @@ async def lifespan(app: FastAPI):
     now = int(time.time() * 1000)
     with engine.begin() as conn:
         conn.execute(
-            text("DELETE FROM refresh_tokens WHERE \"expiresAt\" < :now"),
+            text('DELETE FROM refresh_tokens WHERE "expiresAt" < :now'),
             {"now": now},
         )
 

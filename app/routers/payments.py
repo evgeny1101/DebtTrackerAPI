@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
+
 from app import schemas
-from app.dependencies import get_db, get_current_user
-from app.models import User
 from app.crud import payments as crud
+from app.dependencies import get_current_user, get_db
+from app.models import User
 
 router = APIRouter(prefix="/api", tags=["payments"])
 

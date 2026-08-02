@@ -1,14 +1,16 @@
 import logging
-import time
 import secrets
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+import time
+
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
+
 from app import schemas
-from app.dependencies import get_db, get_current_user
-from app.auth import hash_password, verify_password, create_access_token
+from app.auth import create_access_token, hash_password, verify_password
 from app.config import REFRESH_TOKEN_EXPIRE_DAYS
-from app.models import User, RefreshToken
+from app.dependencies import get_current_user, get_db
 from app.limiter import limiter
+from app.models import RefreshToken, User
 
 logger = logging.getLogger(__name__)
 
@@ -98,11 +100,7 @@ def refresh(
     data: schemas.RefreshRequest,
     db: Session = Depends(get_db),
 ):
-    stored = (
-        db.query(RefreshToken)
-        .filter(RefreshToken.token == data.refreshToken)
-        .first()
-    )
+    stored = db.query(RefreshToken).filter(RefreshToken.token == data.refreshToken).first()
     if not stored:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -145,11 +143,7 @@ def logout(
     db: Session = Depends(get_db),
     _current_user: User = Depends(get_current_user),
 ):
-    stored = (
-        db.query(RefreshToken)
-        .filter(RefreshToken.token == data.refreshToken)
-        .first()
-    )
+    stored = db.query(RefreshToken).filter(RefreshToken.token == data.refreshToken).first()
     if stored:
         db.delete(stored)
         db.commit()

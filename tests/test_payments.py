@@ -124,8 +124,16 @@ class TestListPayments:
     def test_list_payments_for_debt(self, client):
         token = _register_and_login(client)
         _create_debt(client, token, initialAmount=500)
-        client.post("/api/debts/1/payments", json={"amount": 100, "dateMillis": 1000}, headers=_auth_header(token))
-        client.post("/api/debts/1/payments", json={"amount": 50, "dateMillis": 2000}, headers=_auth_header(token))
+        client.post(
+            "/api/debts/1/payments",
+            json={"amount": 100, "dateMillis": 1000},
+            headers=_auth_header(token),
+        )
+        client.post(
+            "/api/debts/1/payments",
+            json={"amount": 50, "dateMillis": 2000},
+            headers=_auth_header(token),
+        )
 
         res = client.get("/api/debts/1/payments", headers=_auth_header(token))
         assert res.status_code == 200

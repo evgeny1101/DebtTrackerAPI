@@ -67,9 +67,8 @@ def test_refresh_expired_token(client):
     reg = client.post("/api/auth/register", json={"username": "grace", "password": "secret123"})
     token = reg.json()["refreshToken"]
 
-    from app.models import RefreshToken
     from app.database import SessionLocal
-    import time
+    from app.models import RefreshToken
 
     db = SessionLocal()
     stored = db.query(RefreshToken).filter(RefreshToken.token == token).first()
