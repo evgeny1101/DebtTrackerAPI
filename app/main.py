@@ -9,12 +9,14 @@ from slowapi.errors import RateLimitExceeded
 from slowapi import _rate_limit_exceeded_handler
 from app.database import Base, engine
 from app.config import JWT_SECRET
+from app.logging import setup_logging
 from app.routers import auth, debts, payments
 from app.limiter import limiter
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    setup_logging()
     Base.metadata.create_all(bind=engine)
 
     now = int(time.time() * 1000)

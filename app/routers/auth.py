@@ -1,3 +1,4 @@
+import logging
 import time
 import secrets
 from fastapi import APIRouter, Depends, HTTPException, status, Request
@@ -8,6 +9,8 @@ from app.auth import hash_password, verify_password, create_access_token
 from app.config import REFRESH_TOKEN_EXPIRE_DAYS
 from app.models import User, RefreshToken
 from app.limiter import limiter
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -64,6 +67,7 @@ def login(
 ):
     user = db.query(User).filter(User.username == data.username).first()
     if not user or not verify_password(data.password, user.passwordHash):
+        logger.warning("Login failed: username=%s", data.username)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",

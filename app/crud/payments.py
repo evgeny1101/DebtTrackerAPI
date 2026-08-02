@@ -1,8 +1,11 @@
+import logging
 import time
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from app.models import Debt, Payment
 from app.schemas import PaymentCreate
+
+logger = logging.getLogger(__name__)
 
 
 def record_payment(
@@ -17,6 +20,7 @@ def record_payment(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Debt not found")
 
     if debt.currentAmount <= 0:
+        logger.warning("Payment rejected: debt=%d is fully paid", debt_id)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Долг уже полностью погашен",
@@ -32,6 +36,10 @@ def record_payment(
     debt.currentAmount = max(0, debt.currentAmount - data.amount)
     db.commit()
     db.refresh(payment)
+    logger.info(
+        "Payment recorded: debt=%d payment=%d amount=%d remaining=%d",
+        debt_id, payment.id, data.amount, debt.currentAmount,
+    )
     return payment
 
 
@@ -59,6 +67,10 @@ def delete_payment(
     db.delete(payment)
     debt.currentAmount += amount
     db.commit()
+    logger.info(
+        "Payment deleted: payment=%d debt=%d restored=%d current=%d",
+        payment_id, debt_id, amount, debt.currentAmount,
+    )
 
     return {
         "id": payment_id,
