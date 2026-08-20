@@ -7,14 +7,14 @@ description: Build, start, and test the DebtTracker API — run test suite and s
 
 - Start the Docker container (build if needed)
 - Install test dependencies inside the container
-- Run the pytest suite (41 tests)
+- Run the pytest suite (45 tests)
 - Quick smoke test: health check, register, login, create debt, record payment
 - Report results
 
 ## Execution order
 
 1. Build + start container
-2. Install test deps (`pytest httpx`) inside container
+2. Install test deps (`pip install -r requirements-dev.txt`) inside container
 3. Run pytest — if any test fails, report the failure and check `docker compose logs`
 4. If all tests pass, run smoke test
 5. Report: pass/fail counts + API smoke status
@@ -32,7 +32,7 @@ Wait for the container to be ready (check logs for "Uvicorn running").
 ### Install test dependencies (skip if already installed)
 
 ```bash
-docker compose exec api pip install -q pytest httpx
+docker compose exec api pip install -q -r requirements-dev.txt
 ```
 
 ### Run test suite
@@ -41,7 +41,7 @@ docker compose exec api pip install -q pytest httpx
 docker compose exec api python -m pytest tests/ -v
 ```
 
-Expected: 41 passed, 0 failed.
+Expected: 45 passed, 0 failed.
 
 ### Smoke test — health check
 

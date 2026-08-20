@@ -9,7 +9,11 @@ COPY . .
 
 ENV PYTHONPATH=/app
 
-RUN mkdir -p /data
+RUN mkdir -p /data && \
+    useradd --uid 1001 --create-home appuser && \
+    chown -R appuser:appuser /app /data
+
+USER appuser
 
 EXPOSE 8000
 

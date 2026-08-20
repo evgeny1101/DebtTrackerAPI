@@ -35,12 +35,14 @@ openssl rand -hex 32
 | `docker compose logs -f` | Follow logs |
 | `docker compose exec api alembic revision --autogenerate -m "..."` | Generate new migration |
 | `docker compose exec api alembic upgrade head` | Apply migrations manually |
-| `docker compose exec api python -c "..."` | Run Python inside container |
-| `docker compose exec api python -m pytest tests/ -v` | Run test suite (41 tests) |
-| `docker compose exec api ruff check .` | Lint all Python files |
-| `docker compose exec api ruff check --fix .` | Auto-fix lint issues |
-| `docker compose exec api ruff format --check .` | Check formatting |
-| `docker compose exec api ruff format .` | Auto-format all Python files |
+| `docker compose exec api pip install -r requirements-dev.txt` | Install dev deps (pytest, ruff, httpx) once |
+| `docker compose exec api python -m pytest tests/ -v` | Run test suite (45 tests) |
+| `docker compose exec api python -m ruff check .` | Lint all Python files |
+| `docker compose exec api python -m ruff check --fix .` | Auto-fix lint issues |
+| `docker compose exec api python -m ruff format --check .` | Check formatting |
+| `docker compose exec api python -m ruff format .` | Auto-format all Python files |
+
+> Note: inside the container use `python -m ruff` — dev deps install to user-site (`~/.local/bin`), which is not on `PATH` for non-login `docker compose exec`.
 
 Migrations run automatically on container start via `entrypoint.sh` — no manual steps needed for schema creation.
 
@@ -117,7 +119,7 @@ Request → Router (validates with Pydantic, extracts current_user from JWT)
 | Amounts | `int` / `BigInteger`, no floats |
 | Error format | `{"detail": "message"}` — FastAPI default |
 | HTTP status codes | 201 (created), 204 (no content), 400 (bad request), 401 (unauthorized), 404 (not found), 409 (conflict) |
-| Linting | Run `ruff check . && ruff format --check .` before every commit. Zero errors required |
+| Linting | Run `python -m ruff check . && python -m ruff format --check .` inside the container before every commit. Zero errors required |
 
 ---
 
@@ -126,11 +128,13 @@ Request → Router (validates with Pydantic, extracts current_user from JWT)
 | Variable | Default | Notes |
 |----------|---------|-------|
 | `DATABASE_URL` | `sqlite:///./debts.db` | Overridden to `sqlite:////data/debts.db` in docker-compose |
-| `JWT_SECRET` | `dev-secret-change-me` | Generate with `openssl rand -hex 32` for production |
+| `ENVIRONMENT` | `development` | `production` enables fail-fast checks (JWT_SECRET strength, etc.) |
+| `JWT_SECRET` | `dev-secret-change-me` | Generate with `openssl rand -hex 32`; production refuses to start unless it's a strong random value (>= 32 chars) |
 | `JWT_ALGORITHM` | `HS256` | |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | `30` | |
 | `REFRESH_TOKEN_EXPIRE_DAYS` | `30` | |
 | `LOG_LEVEL` | `INFO` | `DEBUG` for verbose, `WARNING` for production |
+| `CORS_ORIGINS` | (empty) | Comma-separated allowed origins; requests from other origins are rejected |
 
 ---
 
@@ -231,7 +235,7 @@ users
 
 refresh_tokens
 ├── id        INTEGER PK AUTOINCREMENT
-├── token     TEXT UNIQUE NOT NULL  (secrets.token_urlsafe(64))
+├── token     TEXT UNIQUE NOT NULL  (SHA-256 hash of secrets.token_urlsafe(64) — raw never stored)
 ├── userId    INTEGER FK → users.id
 ├── expiresAt BIGINT NOT NULL      (unix millis)
 └── createdAt BIGINT NOT NULL
@@ -258,18 +262,19 @@ payments
 
 ## Testing
 
-### Automated (pytest — 41 tests)
+### Automated (pytest — 45 tests)
 
 ```bash
-# Install test deps inside container (first time)
-docker compose exec api pip install pytest httpx
+# Install dev deps inside container (first time)
+docker compose exec api pip install -r requirements-dev.txt
 
 # Run test suite
 docker compose exec api python -m pytest tests/ -v
 ```
 
 Tests use a temp-file SQLite database — no effect on production data.
-Coverage: auth (register, login, refresh rotation, logout, expired tokens),
+Coverage: auth (register, login, refresh rotation, logout, expired tokens, refresh
+token hashing, malformed token payload, rate-limit key resolution),
 debts (CRUD, active filter, update recalc, cascade delete, user isolation, reminders),
 payments (record, overpayment clamp, fully-paid error, delete restore, sorting).
 
@@ -323,6 +328,9 @@ Or use Swagger UI: `http://localhost:8000/docs`
 
 - `POST /api/auth/login` — 5 requests/minute per IP
 - `POST /api/auth/register` — 5 requests/minute per IP
+- `POST /api/auth/refresh` — 5 requests/minute per IP
+- `POST /api/auth/logout` — 10 requests/minute per IP
+- Key: client IP from `X-Forwarded-For` (set by reverse proxy) with fallback to socket IP. The proxy MUST overwrite `X-Forwarded-For` with the real client IP (never append client-supplied values) — otherwise spoofing/rate-limit bypass.
 - Configurable: edit `@limiter.limit(...)` decorators in `app/routers/auth.py`
 
 ---
@@ -336,10 +344,12 @@ sqlalchemy        # ORM
 alembic           # Migrations
 pydantic          # Validation
 passlib[bcrypt]   # Password hashing
-bcrypt<5          # Pinned for passlib 1.7.4 compat
+bcrypt==4.3.0     # Pinned for passlib 1.7.4 compat
 python-jose[cryptography]  # JWT
 slowapi           # Rate limiting
 ```
+
+All versions pinned in `requirements.txt` — update deliberately, run `pip-audit -r requirements.txt` before release.
 
 ---
 
@@ -348,7 +358,7 @@ slowapi           # Rate limiting
 GitHub Actions workflow triggers on `git tag v*` (not on push to main):
 
 ```
-git tag v0.1.0 → Lint (ruff) → Test (pytest, 41 tests) → Build & Push to ghcr.io
+git tag v0.1.0 → Lint (ruff) → Test (pytest, 45 tests) → Security (pip-audit) → Build & Push to ghcr.io
 ```
 
 Docker images published at `ghcr.io/evgeny1101/debttrackerapi` with tags:

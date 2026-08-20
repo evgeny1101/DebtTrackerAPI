@@ -22,17 +22,19 @@ description: Run ruff linter and formatter on all Python files, auto-fix when po
 
 ```bash
 # Lint check
-docker compose exec api ruff check .
+docker compose exec api python -m ruff check .
 
 # Auto-fix lint issues
-docker compose exec api ruff check --fix .
+docker compose exec api python -m ruff check --fix .
 
 # Check formatting
-docker compose exec api ruff format --check .
+docker compose exec api python -m ruff format --check .
 
 # Auto-format
-docker compose exec api ruff format .
+docker compose exec api python -m ruff format .
 ```
+
+> Use `python -m ruff` inside the container — dev deps install to user-site (`~/.local/bin`), not on `PATH` for non-login `docker compose exec`.
 
 ## Rules suppression (configured in pyproject.toml)
 

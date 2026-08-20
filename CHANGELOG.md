@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.2.0] — 2026-08-20
+
+### Security hardening
+- **Fail-fast production config**: app refuses to start if `JWT_SECRET` is default or < 32 chars when `ENVIRONMENT=production` (was a startup warning only)
+- **Refresh tokens stored as SHA-256 hashes** — raw token is never persisted (previously stored plaintext in DB). Migration `002` resets all existing sessions
+- **Rate limiting keyed on `X-Forwarded-For`** — works correctly behind a reverse proxy, resists IP spoofing; added limits on `/refresh` (5/min) and `/logout` (10/min)
+- **CORS locked down**: origins read from `CORS_ORIGINS` env (empty by default), `allow_credentials` disabled (was `*` + credentials)
+- **Container runs as non-root** `appuser` (uid 1001)
+- **Input hardening**: debt names capped at 200 chars, `reminderIntervalDays` must be > 0
+- **Malformed JWT `sub`** now returns 401 instead of crashing with 500
+- **Dependencies pinned** (exact versions in `requirements.txt`), dev deps split to `requirements-dev.txt`, `pip-audit` added to CI
+
+### Developer Experience
+- Test suite grown to 45 tests (refresh-token hashing, malformed token payload, rate-limit key resolution)
+
 ## [0.1.0] — 2026-08-02
 
 ### Auth

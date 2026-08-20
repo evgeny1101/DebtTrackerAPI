@@ -67,11 +67,12 @@ def test_refresh_expired_token(client):
     reg = client.post("/api/auth/register", json={"username": "grace", "password": "secret123"})
     token = reg.json()["refreshToken"]
 
+    from app.auth import hash_token
     from app.database import SessionLocal
     from app.models import RefreshToken
 
     db = SessionLocal()
-    stored = db.query(RefreshToken).filter(RefreshToken.token == token).first()
+    stored = db.query(RefreshToken).filter(RefreshToken.token == hash_token(token)).first()
     stored.expiresAt = 0
     db.commit()
     db.close()
@@ -119,3 +120,58 @@ def test_protected_route_with_valid_token(client):
     token = reg.json()["accessToken"]
     res = client.get("/api/debts", headers={"Authorization": f"Bearer {token}"})
     assert res.status_code == 200
+
+
+def test_refresh_token_stored_hashed(client):
+    reg = client.post("/api/auth/register", json={"username": "hsh", "password": "secret123"})
+    refresh = reg.json()["refreshToken"]
+
+    from app.auth import hash_token
+    from app.database import SessionLocal
+    from app.models import RefreshToken
+
+    db = SessionLocal()
+    stored = db.query(RefreshToken).filter(RefreshToken.userId == 1).first()
+    db.close()
+
+    assert stored is not None
+    assert stored.token != refresh
+    assert stored.token == hash_token(refresh)
+
+
+def test_invalid_sub_returns_401(client):
+    from datetime import UTC, datetime, timedelta
+
+    from jose import jwt
+
+    from app.config import JWT_ALGORITHM, JWT_SECRET
+
+    bad = jwt.encode(
+        {"sub": "not-an-int", "exp": datetime.now(UTC) + timedelta(minutes=5)},
+        JWT_SECRET,
+        algorithm=JWT_ALGORITHM,
+    )
+    res = client.get("/api/debts", headers={"Authorization": f"Bearer {bad}"})
+    assert res.status_code == 401
+
+
+def test_rate_limit_key_uses_x_forwarded_for():
+    from starlette.requests import Request
+
+    from app.limiter import _client_key
+
+    scope = {
+        "type": "http",
+        "headers": [(b"x-forwarded-for", b"203.0.113.7, 10.0.0.1")],
+        "client": ("1.2.3.4", 1234),
+    }
+    assert _client_key(Request(scope)) == "203.0.113.7"
+
+
+def test_rate_limit_key_falls_back_to_client_host():
+    from starlette.requests import Request
+
+    from app.limiter import _client_key
+
+    scope = {"type": "http", "headers": [], "client": ("1.2.3.4", 1234)}
+    assert _client_key(Request(scope)) == "1.2.3.4"

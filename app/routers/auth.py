@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app import schemas
-from app.auth import create_access_token, hash_password, verify_password
+from app.auth import create_access_token, hash_password, hash_token, verify_password
 from app.config import REFRESH_TOKEN_EXPIRE_DAYS
 from app.dependencies import get_current_user, get_db
 from app.limiter import limiter
@@ -46,7 +46,7 @@ def register(
     expires_at = now + REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60 * 1000
 
     refresh_token = RefreshToken(
-        token=refresh_token_str,
+        token=hash_token(refresh_token_str),
         userId=user.id,
         expiresAt=expires_at,
         createdAt=now,
@@ -81,7 +81,7 @@ def login(
     expires_at = now + REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60 * 1000
 
     refresh_token = RefreshToken(
-        token=refresh_token_str,
+        token=hash_token(refresh_token_str),
         userId=user.id,
         expiresAt=expires_at,
         createdAt=now,
@@ -96,11 +96,15 @@ def login(
 
 
 @router.post("/refresh", response_model=schemas.TokenResponse)
+@limiter.limit("5/minute")
 def refresh(
+    request: Request,
     data: schemas.RefreshRequest,
     db: Session = Depends(get_db),
 ):
-    stored = db.query(RefreshToken).filter(RefreshToken.token == data.refreshToken).first()
+    stored = (
+        db.query(RefreshToken).filter(RefreshToken.token == hash_token(data.refreshToken)).first()
+    )
     if not stored:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -123,7 +127,7 @@ def refresh(
     expires_at = now + REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60 * 1000
 
     new_refresh = RefreshToken(
-        token=refresh_token_str,
+        token=hash_token(refresh_token_str),
         userId=stored.userId,
         expiresAt=expires_at,
         createdAt=now,
@@ -138,12 +142,16 @@ def refresh(
 
 
 @router.post("/logout", status_code=204)
+@limiter.limit("10/minute")
 def logout(
+    request: Request,
     data: schemas.RefreshRequest,
     db: Session = Depends(get_db),
     _current_user: User = Depends(get_current_user),
 ):
-    stored = db.query(RefreshToken).filter(RefreshToken.token == data.refreshToken).first()
+    stored = (
+        db.query(RefreshToken).filter(RefreshToken.token == hash_token(data.refreshToken)).first()
+    )
     if stored:
         db.delete(stored)
         db.commit()

@@ -24,11 +24,24 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -r requirements.txt pytest httpx
+      - run: pip install -r requirements-dev.txt
       - run: python -m pytest tests/ -v
 
+  security:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pip-audit
+      # PYSEC-2026-1325: ecdsa (transitive dep of python-jose, EC algorithms only).
+      # App uses HS256 exclusively, code never exercises ecdsa.
+      - run: pip-audit -r requirements.txt --ignore-vuln PYSEC-2026-1325
+
   build-and-push:
-    needs: test
+    needs: [test, security]
     runs-on: ubuntu-latest
     permissions:
       contents: read

@@ -7,6 +7,8 @@ Personal debt tracking with multi-user JWT authentication, transactional payment
 
 ```bash
 mkdir data
+# Container runs as non-root uid 1001 — make /data writable:
+sudo chown 1001:1001 data
 docker compose up -d --build
 ```
 
@@ -27,9 +29,10 @@ openssl rand -hex 32
 - Atomic payment transactions: check → insert → deduct `currentAmount`
 - Payment deletion restores `currentAmount`
 - Debt editing with automatic `currentAmount` recalculation
-- Rate limiting on login/register (5 req/min per IP)
+- Rate limiting on auth endpoints (login/register/refresh 5 req/min, logout 10 req/min per IP)
+- Refresh tokens stored as SHA-256 hashes (raw never persisted)
 - Structured logging (`LOG_LEVEL` env variable)
-- 41 automated tests, Swagger auto-docs, Ruff linting
+- 45 automated tests, Swagger auto-docs, Ruff linting
 
 ## Android App
 
@@ -44,8 +47,10 @@ This API serves the [DebtTracker Android app](https://github.com/ShAlexandra/Deb
 | Variable | Default | Notes |
 |----------|---------|-------|
 | `DATABASE_URL` | `sqlite:///./debts.db` | Overridden in docker-compose to `/data/debts.db` |
-| `JWT_SECRET` | `dev-secret-change-me` | Generate with `openssl rand -hex 32` for production |
+| `ENVIRONMENT` | `development` | `production` refuses to start on weak/missing config |
+| `JWT_SECRET` | `dev-secret-change-me` | Generate with `openssl rand -hex 32`; production requires >= 32 chars |
 | `LOG_LEVEL` | `INFO` | `DEBUG` for verbose, `WARNING` for production |
+| `CORS_ORIGINS` | (empty) | Comma-separated allowed origins; other origins rejected |
 
 ## Project Structure
 
@@ -58,7 +63,7 @@ DebtTrackerAPI/
 │   ├── auth.py              # JWT encode/decode, bcrypt hash/verify
 │   ├── routers/             # HTTP endpoints (auth, debts, payments)
 │   └── crud/                # Business logic + DB queries + transactions
-├── tests/                   # 41 pytest tests (auth, debts, payments)
+├── tests/                   # 45 pytest tests (auth, debts, payments)
 ├── alembic/                 # DB migrations
 ├── Dockerfile + docker-compose.yml
 └── .opencode/               # OpenCode skills
@@ -68,11 +73,11 @@ DebtTrackerAPI/
 
 ```bash
 # Run test suite (inside container)
-docker compose exec api pip install -q pytest httpx
+docker compose exec api pip install -q -r requirements-dev.txt
 docker compose exec api python -m pytest tests/ -v
 ```
 
-41 tests covering auth, CRUD, payments, user isolation, and business logic.
+45 tests covering auth, CRUD, payments, user isolation, and business logic.
 
 ## Linting
 

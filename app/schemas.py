@@ -37,18 +37,18 @@ class RefreshRequest(BaseModel):
 
 
 class DebtCreate(BaseModel):
-    name: str
+    name: str = Field(..., min_length=1, max_length=200)
     debtType: DebtType
     initialAmount: int = Field(..., gt=0)
     createdAt: int | None = None
-    reminderIntervalDays: int | None = None
+    reminderIntervalDays: int | None = Field(default=None, gt=0)
 
 
 class DebtUpdate(BaseModel):
-    name: str
+    name: str = Field(..., min_length=1, max_length=200)
     initialAmount: int = Field(..., gt=0)
     createdAt: int | None = None
-    reminderIntervalDays: int | None = None
+    reminderIntervalDays: int | None = Field(default=None, gt=0)
 
 
 class DebtUpdateCurrentAmount(BaseModel):
