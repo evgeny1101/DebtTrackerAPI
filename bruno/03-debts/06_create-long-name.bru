@@ -1,0 +1,27 @@
+meta {
+  name: Create name > 200 chars (expect 422)
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/api/debts
+  body: json
+  auth: bearer
+}
+
+body:json {
+  {
+    "name": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "debtType": "I_OWE",
+    "initialAmount": 100
+  }
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+script:post-response {
+  if (res.status !== 422) throw new Error("Expected 422, got " + res.status);
+}

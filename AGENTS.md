@@ -11,12 +11,19 @@ Python/FastAPI backend for the DebtTracker Android app — personal debt trackin
 
 ```bash
 mkdir data
+# Container runs as non-root uid 1001 — make /data writable on a Linux host:
+# sudo chown 1001:1001 data
 docker compose up -d --build
 ```
 
-- API: `http://localhost:8000`
-- Swagger UI: `http://localhost:8000/docs`
-- Health: `http://localhost:8000/health`
+Dev only: API on `http://localhost:8000`, Swagger UI `http://localhost:8000/docs`, Health `http://localhost:8000/health`.
+
+Production deployment (TLS + unguessable path prefix, see [Deployment](#deployment-production)):
+
+```bash
+docker compose --profile proxy up -d --build
+```
+API: `https://<server-ip>:8443/<API_PATH_PREFIX>/api/...`
 
 Before deploying, generate a real JWT secret:
 ```bash
@@ -36,7 +43,7 @@ openssl rand -hex 32
 | `docker compose exec api alembic revision --autogenerate -m "..."` | Generate new migration |
 | `docker compose exec api alembic upgrade head` | Apply migrations manually |
 | `docker compose exec api pip install -r requirements-dev.txt` | Install dev deps (pytest, ruff, httpx) once |
-| `docker compose exec api python -m pytest tests/ -v` | Run test suite (45 tests) |
+| `docker compose exec api python -m pytest tests/ -v` | Run test suite (53 tests) |
 | `docker compose exec api python -m ruff check .` | Lint all Python files |
 | `docker compose exec api python -m ruff check --fix .` | Auto-fix lint issues |
 | `docker compose exec api python -m ruff format --check .` | Check formatting |
@@ -81,12 +88,18 @@ DebtTrackerAPI/
 │   ├── env.py               # Overrides DATABASE_URL from app.config
 │   ├── script.py.mako
 │   └── versions/
-│       └── 001_initial.py   # users, refresh_tokens, debts, payments
+│       ├── 001_initial.py   # users, refresh_tokens, debts, payments
+│       └── 002_reset_refresh_tokens.py  # reset sessions (tokens now hashed)
 ├── alembic.ini
-├── Dockerfile               # python:3.12-slim, PYTHONPATH=/app
-├── docker-compose.yml       # Mounts ./data:/data, env vars
-├── entrypoint.sh             # alembic upgrade head → uvicorn
-├── requirements.txt         # bcrypt<5 pinned (passlib 1.7.4 compatibility)
+├── bruno/                       # Manual API test collection (49 requests, dev env)
+├── Dockerfile               # python:3.12-slim, non-root appuser, PYTHONPATH=/app
+├── docker-compose.yml       # api (127.0.0.1:8000) + nginx profile `proxy` (8443)
+├── nginx/
+│   └── nginx.conf           # TLS termination: 8443, cert /certs/ip/*, proxy to api
+├── reload-nginx.sh          # certbot/acme.sh deploy-hook → nginx -s reload
+├── entrypoint.sh             # alembic upgrade head → uvicorn (body limit 1 MB)
+├── requirements.txt         # Pinned prod deps, no dev tools
+├── requirements-dev.txt     # + ruff, pytest, httpx, pip-audit
 ├── pyproject.toml
 ├── .dockerignore             # Excludes __pycache__, .venv, .env, .git, data/
 ├── .gitignore
@@ -135,10 +148,16 @@ Request → Router (validates with Pydantic, extracts current_user from JWT)
 | `REFRESH_TOKEN_EXPIRE_DAYS` | `30` | |
 | `LOG_LEVEL` | `INFO` | `DEBUG` for verbose, `WARNING` for production |
 | `CORS_ORIGINS` | (empty) | Comma-separated allowed origins; requests from other origins are rejected |
+| `API_PATH_PREFIX` | (empty) | Unguessable base path for all API routes (e.g. `openssl rand -base64 32`). Production requires >= 32 chars; embed it in the mobile app at build time |
+| `ENABLE_DOCS` | auto | `true` in dev, `false` in production by default; controls `/docs`, `/redoc`, `/openapi.json` |
+| `CERT_DIR` | `/root/cert` | Host dir with `ip/fullchain.pem` + `ip/privkey.pem`, mounted into nginx (proxy profile) |
 
 ---
 
 ## API Endpoints
+
+> All routes below are served under `<API_PATH_PREFIX>` in production
+> (e.g. `/xKJ3…Tz8/api/auth/register`). Requests to the bare `/api/...` paths are not routed.
 
 ### Auth (no authentication required except /logout)
 
@@ -262,7 +281,7 @@ payments
 
 ## Testing
 
-### Automated (pytest — 45 tests)
+### Automated (pytest — 53 tests)
 
 ```bash
 # Install dev deps inside container (first time)
@@ -277,6 +296,29 @@ Coverage: auth (register, login, refresh rotation, logout, expired tokens, refre
 token hashing, malformed token payload, rate-limit key resolution),
 debts (CRUD, active filter, update recalc, cascade delete, user isolation, reminders),
 payments (record, overpayment clamp, fully-paid error, delete restore, sorting).
+
+### Manual/api — Bruno collection (`bruno/`)
+
+49 requests with assertion scripts, run against the live dev backend
+(`baseUrl` from the `dev` environment in `bruno/environments/dev.bru`). Run in
+folder order (numbered): `00-setup` → `01-health` → `02-auth` → `03-debts` →
+`04-payments` → `05-hardening`.
+
+```bash
+# Reset dev DB for a clean run (drops all dev data)
+docker compose down && rm -f data/debts.db && docker compose up -d
+
+# Install Bruno CLI once (v4+)
+npm install -g @usebruno/cli
+
+# Run the whole collection
+cd bruno && bru run --env dev
+```
+
+- Post-response scripts assert status codes and business values; a thrown error marks the request failed.
+- The CLI persists live tokens/ids into `environments/dev.bru` — revert it before committing:
+  `git checkout bruno/environments/dev.bru`.
+- See `bruno/README.md` for flow notes and the body-too-large curl check (413).
 
 ### Manual (curl)
 
@@ -335,6 +377,44 @@ Or use Swagger UI: `http://localhost:8000/docs`
 
 ---
 
+## Deployment (production)
+
+Production uses the `proxy` compose profile: an nginx container terminates TLS on `8443`
+and proxies to the API over the internal network. The API publishes `127.0.0.1:8000` only.
+
+```bash
+# 1. Prepare env (`.env` in project root)
+ENVIRONMENT=production
+JWT_SECRET=$(openssl rand -hex 32)   # >= 32 chars, fail-fast enforced
+API_PATH_PREFIX=$(openssl rand -base64 32 | tr '/+' '_-')   # embed in mobile app
+# CORS_ORIGINS=...  # optional
+
+# 2. Certificates on the host (owned by the renewal tool)
+#    /root/cert/ip/fullchain.pem
+#    /root/cert/ip/privkey.pem
+#    The cert must have SAN = IP (CN is ignored by Android), chain trusted by Android.
+
+# 3. Make /data writable for the non-root container user
+mkdir -p data && sudo chown 1001:1001 data
+
+# 4. Start
+docker compose --profile proxy up -d --build
+
+# 5. Hook cert renewal → nginx reload (run from project root)
+certbot renew --deploy-hook "$(pwd)/reload-nginx.sh"
+```
+
+Verify: `openssl x509 -in /root/cert/ip/fullchain.pem -noout -text | grep -i "IP Address"`
+Then `curl -k https://<server-ip>:8443/health` → `{"status":"ok"}`.
+
+- The proxy MUST overwrite `X-Forwarded-For` with the real client IP — nginx is configured
+  to set `X-Forwarded-For $remote_addr` (never appends client-supplied values).
+- nginx access logs are disabled — the unguessable path prefix never appears in logs.
+- If your CA is not publicly trusted by Android, skip straight to a Wifi/HTTPS debug build
+  or add the CA to the app's trust store.
+
+---
+
 ## Dependencies
 
 ```
@@ -358,7 +438,7 @@ All versions pinned in `requirements.txt` — update deliberately, run `pip-audi
 GitHub Actions workflow triggers on `git tag v*` (not on push to main):
 
 ```
-git tag v0.1.0 → Lint (ruff) → Test (pytest, 45 tests) → Security (pip-audit) → Build & Push to ghcr.io
+git tag v0.1.0 → Lint (ruff) → Test (pytest, 53 tests) → Security (pip-audit) → Build & Push to ghcr.io
 ```
 
 Docker images published at `ghcr.io/evgeny1101/debttrackerapi` with tags:

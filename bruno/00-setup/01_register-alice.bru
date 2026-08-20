@@ -1,0 +1,29 @@
+meta {
+  name: Setup: register alice
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/auth/register
+  body: json
+  auth: none
+}
+
+headers {
+  X-Forwarded-For: 203.0.113.10
+}
+
+body:json {
+  {
+    "username": "alice",
+    "password": "secret123"
+  }
+}
+
+script:post-response {
+  if (res.status !== 201) throw new Error("Expected 201, got " + res.status);
+  bru.setEnvVar("accessToken", res.body.accessToken);
+  bru.setEnvVar("refreshToken", res.body.refreshToken);
+  bru.setEnvVar("refreshTokenOld", res.body.refreshToken);
+}

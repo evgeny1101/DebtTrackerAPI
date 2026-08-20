@@ -1,0 +1,22 @@
+meta {
+  name: List active debts (expect 200)
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/api/debts?active=true
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+script:post-response {
+  if (res.status !== 200) throw new Error("Expected 200, got " + res.status);
+  if (res.body.some((d) => d.currentAmount === 0)) {
+    throw new Error("active filter should exclude currentAmount == 0");
+  }
+}

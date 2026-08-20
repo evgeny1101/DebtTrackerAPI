@@ -1,0 +1,26 @@
+meta {
+  name: Record payment 300 (expect 201, current 700)
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/debts/{{debtId}}/payments
+  body: json
+  auth: bearer
+}
+
+body:json {
+  {
+    "amount": 300
+  }
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+script:post-response {
+  if (res.status !== 201) throw new Error("Expected 201, got " + res.status);
+  bru.setEnvVar("paymentId", res.body.id);
+}

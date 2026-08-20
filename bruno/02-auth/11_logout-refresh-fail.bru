@@ -1,0 +1,25 @@
+meta {
+  name: Refresh after logout (expect 401)
+  type: http
+  seq: 11
+}
+
+post {
+  url: {{baseUrl}}/api/auth/refresh
+  body: json
+  auth: none
+}
+
+headers {
+  X-Forwarded-For: 203.0.113.10
+}
+
+body:json {
+  {
+    "refreshToken": "{{refreshToken}}"
+  }
+}
+
+script:post-response {
+  if (res.status !== 401) throw new Error("Expected 401, got " + res.status);
+}

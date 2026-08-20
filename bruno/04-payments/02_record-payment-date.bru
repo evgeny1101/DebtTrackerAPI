@@ -1,0 +1,28 @@
+meta {
+  name: Record payment with date (expect 201, current 600)
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/debts/{{debtId}}/payments
+  body: json
+  auth: bearer
+}
+
+body:json {
+  {
+    "amount": 100,
+    "dateMillis": 1781000000000
+  }
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+script:post-response {
+  if (res.status !== 201) throw new Error("Expected 201, got " + res.status);
+  if (res.body.dateMillis !== 1781000000000) throw new Error("dateMillis should be echoed");
+  bru.setEnvVar("paymentIdDate", res.body.id);
+}

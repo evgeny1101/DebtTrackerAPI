@@ -1,0 +1,25 @@
+meta {
+  name: Overpay extra debt (expect 201, clamp to 0)
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/debts/{{extraDebtId}}/payments
+  body: json
+  auth: bearer
+}
+
+body:json {
+  {
+    "amount": 99999
+  }
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+script:post-response {
+  if (res.status !== 201) throw new Error("Expected 201, got " + res.status);
+}

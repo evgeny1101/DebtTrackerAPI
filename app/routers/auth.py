@@ -7,14 +7,14 @@ from sqlalchemy.orm import Session
 
 from app import schemas
 from app.auth import create_access_token, hash_password, hash_token, verify_password
-from app.config import REFRESH_TOKEN_EXPIRE_DAYS
+from app.config import REFRESH_TOKEN_EXPIRE_DAYS, api_path_prefix
 from app.dependencies import get_current_user, get_db
 from app.limiter import limiter
 from app.models import RefreshToken, User
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/auth", tags=["auth"])
+router = APIRouter(prefix=f"{api_path_prefix()}/api/auth", tags=["auth"])
 
 
 @router.post("/register", response_model=schemas.TokenResponse, status_code=201)

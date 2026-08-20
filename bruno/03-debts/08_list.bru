@@ -1,0 +1,22 @@
+meta {
+  name: List all debts (expect 200, 3 items)
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/api/debts
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+script:post-response {
+  if (res.status !== 200) throw new Error("Expected 200, got " + res.status);
+  if (!Array.isArray(res.body) || res.body.length !== 3) {
+    throw new Error("Expected 3 debts, got " + (Array.isArray(res.body) ? res.body.length : "non-array"));
+  }
+}

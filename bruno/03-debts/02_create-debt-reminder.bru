@@ -1,0 +1,31 @@
+meta {
+  name: Create debt with reminder (expect 201)
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/debts
+  body: json
+  auth: bearer
+}
+
+body:json {
+  {
+    "name": "Rent",
+    "debtType": "OWE_ME",
+    "initialAmount": 2000,
+    "createdAt": 1787000000000,
+    "reminderIntervalDays": 7
+  }
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+script:post-response {
+  if (res.status !== 201) throw new Error("Expected 201, got " + res.status);
+  if (res.body.reminderIntervalDays !== 7) throw new Error("reminderIntervalDays should be 7");
+  bru.setEnvVar("debtReminderId", res.body.id);
+}

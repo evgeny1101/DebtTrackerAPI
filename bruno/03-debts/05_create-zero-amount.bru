@@ -1,0 +1,27 @@
+meta {
+  name: Create zero amount (expect 422)
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/debts
+  body: json
+  auth: bearer
+}
+
+body:json {
+  {
+    "name": "Zero",
+    "debtType": "I_OWE",
+    "initialAmount": 0
+  }
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+script:post-response {
+  if (res.status !== 422) throw new Error("Expected 422, got " + res.status);
+}

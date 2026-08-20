@@ -1,0 +1,23 @@
+meta {
+  name: Delete payment (expect 200, restore)
+  type: http
+  seq: 11
+}
+
+delete {
+  url: {{baseUrl}}/api/debts/{{debtId}}/payments/{{paymentId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+script:post-response {
+  if (res.status !== 200) throw new Error("Expected 200, got " + res.status);
+  // currentAmount was 1600 after update; deleting the 300 payment restores 1600 + 300 = 1900
+  if (res.body.currentAmount !== 1900) {
+    throw new Error("Expected currentAmount 1900, got " + res.body.currentAmount);
+  }
+}

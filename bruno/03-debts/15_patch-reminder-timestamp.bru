@@ -1,0 +1,25 @@
+meta {
+  name: Patch reminder timestamp (expect 200)
+  type: http
+  seq: 15
+}
+
+patch {
+  url: {{baseUrl}}/api/debts/{{debtId}}/reminder-timestamp
+  body: json
+  auth: bearer
+}
+
+body:json {
+  {
+    "timestamp": 1787000000000
+  }
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+script:post-response {
+  if (res.status !== 200) throw new Error("Expected 200, got " + res.status);
+}

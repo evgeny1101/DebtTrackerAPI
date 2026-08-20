@@ -1,0 +1,31 @@
+meta {
+  name: Full update recalc (expect 200, current 1600)
+  type: http
+  seq: 3
+}
+
+put {
+  url: {{baseUrl}}/api/debts/{{debtId}}
+  body: json
+  auth: bearer
+}
+
+body:json {
+  {
+    "name": "Coffee updated",
+    "initialAmount": 2000
+  }
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+script:post-response {
+  if (res.status !== 200) throw new Error("Expected 200, got " + res.status);
+  // paid = 1000 - 600 = 400; new current = 2000 - 400 = 1600
+  if (res.body.currentAmount !== 1600) {
+    throw new Error("Expected currentAmount 1600, got " + res.body.currentAmount);
+  }
+  if (res.body.type !== "I_OWE") throw new Error("type must not change on update");
+}

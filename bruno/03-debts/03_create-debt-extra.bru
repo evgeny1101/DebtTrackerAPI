@@ -1,0 +1,28 @@
+meta {
+  name: Create extra debt 500 (expect 201)
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/debts
+  body: json
+  auth: bearer
+}
+
+body:json {
+  {
+    "name": "Lunch",
+    "debtType": "I_OWE",
+    "initialAmount": 500
+  }
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+script:post-response {
+  if (res.status !== 201) throw new Error("Expected 201, got " + res.status);
+  bru.setEnvVar("extraDebtId", res.body.id);
+}

@@ -1,0 +1,26 @@
+meta {
+  name: Register duplicate alice (expect 409)
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/auth/register
+  body: json
+  auth: none
+}
+
+headers {
+  X-Forwarded-For: 203.0.113.10
+}
+
+body:json {
+  {
+    "username": "alice",
+    "password": "secret123"
+  }
+}
+
+script:post-response {
+  if (res.status !== 409) throw new Error("Expected 409, got " + res.status);
+}

@@ -12,15 +12,26 @@ sudo chown 1001:1001 data
 docker compose up -d --build
 ```
 
+Dev only:
 - API: `http://localhost:8000`
 - Swagger UI: `http://localhost:8000/docs`
 - Health: `http://localhost:8000/health`
 
-Before deploying, generate a real JWT secret:
+Before deploying, generate a real JWT secret and an unguessable API path prefix:
 ```bash
-openssl rand -hex 32
-# Set JWT_SECRET in .env or pass to docker compose
+openssl rand -hex 32                                     # JWT_SECRET
+openssl rand -base64 32 | tr '/+' '_-'                   # API_PATH_PREFIX (embed in the app)
+# Set ENVIRONMENT=production plus above in .env
 ```
+
+Production deployment (nginx TLS on `8443` with your ACME cert for the server IP):
+
+```bash
+docker compose --profile proxy up -d --build
+# API: https://<server-ip>:8443/<API_PATH_PREFIX>/api/...
+# Cert reload hook: certbot renew --deploy-hook "$(pwd)/reload-nginx.sh"
+```
+See [Deployment](#deployment-production) in AGENTS.md for the full production checklist.
 
 ## Features
 
@@ -32,7 +43,7 @@ openssl rand -hex 32
 - Rate limiting on auth endpoints (login/register/refresh 5 req/min, logout 10 req/min per IP)
 - Refresh tokens stored as SHA-256 hashes (raw never persisted)
 - Structured logging (`LOG_LEVEL` env variable)
-- 45 automated tests, Swagger auto-docs, Ruff linting
+- 53 automated tests, Swagger auto-docs, Ruff linting
 
 ## Android App
 
@@ -51,6 +62,9 @@ This API serves the [DebtTracker Android app](https://github.com/ShAlexandra/Deb
 | `JWT_SECRET` | `dev-secret-change-me` | Generate with `openssl rand -hex 32`; production requires >= 32 chars |
 | `LOG_LEVEL` | `INFO` | `DEBUG` for verbose, `WARNING` for production |
 | `CORS_ORIGINS` | (empty) | Comma-separated allowed origins; other origins rejected |
+| `API_PATH_PREFIX` | (empty) | Unguessable prefix for all API routes; production requires >= 32 chars |
+| `ENABLE_DOCS` | auto | `true` in dev, `false` in production; controls `/docs` and `/openapi.json` |
+| `CERT_DIR` | `/root/cert` | Host dir with `ip/fullchain.pem` + `ip/privkey.pem` for nginx |
 
 ## Project Structure
 
@@ -63,7 +77,7 @@ DebtTrackerAPI/
 │   ├── auth.py              # JWT encode/decode, bcrypt hash/verify
 │   ├── routers/             # HTTP endpoints (auth, debts, payments)
 │   └── crud/                # Business logic + DB queries + transactions
-├── tests/                   # 45 pytest tests (auth, debts, payments)
+├── tests/                   # 53 pytest tests (auth, debts, payments)
 ├── alembic/                 # DB migrations
 ├── Dockerfile + docker-compose.yml
 └── .opencode/               # OpenCode skills
@@ -77,7 +91,7 @@ docker compose exec api pip install -q -r requirements-dev.txt
 docker compose exec api python -m pytest tests/ -v
 ```
 
-45 tests covering auth, CRUD, payments, user isolation, and business logic.
+53 tests covering auth, CRUD, payments, user isolation, and business logic.
 
 ## Linting
 

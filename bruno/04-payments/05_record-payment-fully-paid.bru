@@ -1,0 +1,28 @@
+meta {
+  name: Payment on fully paid debt (expect 400)
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/debts/{{extraDebtId}}/payments
+  body: json
+  auth: bearer
+}
+
+body:json {
+  {
+    "amount": 1
+  }
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+script:post-response {
+  if (res.status !== 400) throw new Error("Expected 400, got " + res.status);
+  if (res.body.detail !== "Долг уже полностью погашен") {
+    throw new Error("Unexpected detail: " + res.body.detail);
+  }
+}

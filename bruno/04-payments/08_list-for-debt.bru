@@ -1,0 +1,25 @@
+meta {
+  name: List payments for debt (expect 2, desc)
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/api/debts/{{debtId}}/payments
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+script:post-response {
+  if (res.status !== 200) throw new Error("Expected 200, got " + res.status);
+  if (!Array.isArray(res.body) || res.body.length !== 2) {
+    throw new Error("Expected 2 payments, got " + (Array.isArray(res.body) ? res.body.length : "non-array"));
+  }
+  if (res.body[0].dateMillis < res.body[1].dateMillis) {
+    throw new Error("Payments should be sorted by date desc");
+  }
+}

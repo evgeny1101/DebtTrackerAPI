@@ -1,0 +1,19 @@
+meta {
+  name: Other user sees my debt (expect 404)
+  type: http
+  seq: 14
+}
+
+get {
+  url: {{baseUrl}}/api/debts/{{debtId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{bobToken}}
+}
+
+script:post-response {
+  if (res.status !== 404) throw new Error("Expected 404, got " + res.status);
+}

@@ -2,11 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app import schemas
+from app.config import api_path_prefix
 from app.crud import debts as crud
 from app.dependencies import get_current_user, get_db
 from app.models import User
 
-router = APIRouter(prefix="/api/debts", tags=["debts"])
+router = APIRouter(prefix=f"{api_path_prefix()}/api/debts", tags=["debts"])
 
 
 @router.get("", response_model=list[schemas.DebtResponse])

@@ -1,0 +1,19 @@
+meta {
+  name: List payments Nonexistent debt (expect 404)
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/api/debts/99999/payments
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+script:post-response {
+  if (res.status !== 404) throw new Error("Expected 404, got " + res.status);
+}

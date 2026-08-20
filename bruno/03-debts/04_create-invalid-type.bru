@@ -1,0 +1,27 @@
+meta {
+  name: Create invalid debtType (expect 422)
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/debts
+  body: json
+  auth: bearer
+}
+
+body:json {
+  {
+    "name": "Bad",
+    "debtType": "XXXX",
+    "initialAmount": 100
+  }
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+script:post-response {
+  if (res.status !== 422) throw new Error("Expected 422, got " + res.status);
+}

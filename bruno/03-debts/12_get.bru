@@ -1,0 +1,22 @@
+meta {
+  name: Get debt by id (expect 200)
+  type: http
+  seq: 12
+}
+
+get {
+  url: {{baseUrl}}/api/debts/{{debtId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+script:post-response {
+  if (res.status !== 200) throw new Error("Expected 200, got " + res.status);
+  if (res.body.id !== parseInt(bru.getEnvVar("debtId"))) {
+    throw new Error("Unexpected debt id");
+  }
+}

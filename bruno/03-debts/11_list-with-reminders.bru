@@ -1,0 +1,22 @@
+meta {
+  name: List with reminders (expect only 1)
+  type: http
+  seq: 11
+}
+
+get {
+  url: {{baseUrl}}/api/debts/with-reminders
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+script:post-response {
+  if (res.status !== 200) throw new Error("Expected 200, got " + res.status);
+  if (!Array.isArray(res.body) || res.body.length !== 1 || res.body[0].reminderIntervalDays !== 7) {
+    throw new Error("Expected exactly the Rent debt");
+  }
+}

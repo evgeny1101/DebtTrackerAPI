@@ -1,0 +1,21 @@
+meta {
+  name: Body too large (expect 413, curl only)
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/debts
+  body: json
+  auth: bearer
+}
+
+body:json {
+  {
+    "note": "Cannot run via Bruno — use curl, see README"
+  }
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}

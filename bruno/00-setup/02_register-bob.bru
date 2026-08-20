@@ -1,0 +1,28 @@
+meta {
+  name: Setup: register bob
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/auth/register
+  body: json
+  auth: none
+}
+
+headers {
+  X-Forwarded-For: 203.0.113.11
+}
+
+body:json {
+  {
+    "username": "bob",
+    "password": "secret123"
+  }
+}
+
+script:post-response {
+  if (res.status !== 201) throw new Error("Expected 201, got " + res.status);
+  bru.setEnvVar("bobToken", res.body.accessToken);
+  bru.setEnvVar("bobRefresh", res.body.refreshToken);
+}

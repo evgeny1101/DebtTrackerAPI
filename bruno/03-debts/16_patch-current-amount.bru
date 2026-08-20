@@ -1,0 +1,26 @@
+meta {
+  name: Patch current amount on extra debt (expect 200)
+  type: http
+  seq: 16
+}
+
+patch {
+  url: {{baseUrl}}/api/debts/{{extraDebtId}}/current-amount
+  body: json
+  auth: bearer
+}
+
+body:json {
+  {
+    "amount": 42
+  }
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+script:post-response {
+  if (res.status !== 200) throw new Error("Expected 200, got " + res.status);
+  if (res.body.currentAmount !== 42) throw new Error("currentAmount should be 42");
+}

@@ -1,0 +1,29 @@
+meta {
+  name: Login alice (expect 200)
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/auth/login
+  body: json
+  auth: none
+}
+
+headers {
+  X-Forwarded-For: 203.0.113.10
+}
+
+body:json {
+  {
+    "username": "alice",
+    "password": "secret123"
+  }
+}
+
+script:post-response {
+  if (res.status !== 200) throw new Error("Expected 200, got " + res.status);
+  bru.setEnvVar("accessToken", res.body.accessToken);
+  bru.setEnvVar("refreshToken", res.body.refreshToken);
+  bru.setEnvVar("refreshTokenOld", res.body.refreshToken);
+}

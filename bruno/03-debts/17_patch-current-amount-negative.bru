@@ -1,0 +1,25 @@
+meta {
+  name: Patch current amount negative (expect 422)
+  type: http
+  seq: 17
+}
+
+patch {
+  url: {{baseUrl}}/api/debts/{{extraDebtId}}/current-amount
+  body: json
+  auth: bearer
+}
+
+body:json {
+  {
+    "amount": -1
+  }
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+script:post-response {
+  if (res.status !== 422) throw new Error("Expected 422, got " + res.status);
+}

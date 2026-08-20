@@ -122,6 +122,17 @@ def test_protected_route_with_valid_token(client):
     assert res.status_code == 200
 
 
+def test_docs_enabled_in_development(client):
+    assert client.get("/docs").status_code == 200
+    assert client.get("/openapi.json").status_code == 200
+
+
+def test_body_size_limited(client):
+    big = {"name": "x" * (1024 * 1024 + 512), "debtType": "I_OWE", "initialAmount": 1}
+    res = client.post("/api/debts", json=big)
+    assert res.status_code == 413
+
+
 def test_refresh_token_stored_hashed(client):
     reg = client.post("/api/auth/register", json={"username": "hsh", "password": "secret123"})
     refresh = reg.json()["refreshToken"]

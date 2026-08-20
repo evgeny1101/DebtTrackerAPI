@@ -1,0 +1,31 @@
+meta {
+  name: Refresh (expect 200, rotates token)
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/api/auth/refresh
+  body: json
+  auth: none
+}
+
+headers {
+  X-Forwarded-For: 203.0.113.10
+}
+
+body:json {
+  {
+    "refreshToken": "{{refreshToken}}"
+  }
+}
+
+script:post-response {
+  if (res.status !== 200) throw new Error("Expected 200, got " + res.status);
+  if (res.body.refreshToken === "{{refreshToken}}") {
+    throw new Error("Refresh token was not rotated");
+  }
+  bru.setEnvVar("refreshTokenOld", bru.getEnvVar("refreshToken"));
+  bru.setEnvVar("refreshToken", res.body.refreshToken);
+  bru.setEnvVar("accessToken", res.body.accessToken);
+}

@@ -1,0 +1,22 @@
+meta {
+  name: List all payments (expect 3)
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{baseUrl}}/api/payments
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+script:post-response {
+  if (res.status !== 200) throw new Error("Expected 200, got " + res.status);
+  if (!Array.isArray(res.body) || res.body.length !== 3) {
+    throw new Error("Expected 3 payments, got " + (Array.isArray(res.body) ? res.body.length : "non-array"));
+  }
+}

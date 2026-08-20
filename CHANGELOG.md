@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.3.0] — 2026-08-20
+
+### Production deployment
+- **nginx TLS termination** (`8443`) via new `proxy` compose profile — API is bound to `127.0.0.1:8000` only, nginx proxies over an internal network
+- **Unguessable `API_PATH_PREFIX`** for all API routes — production refuses to start without a >= 32 char random prefix (fail-fast in `validate_production_config`)
+- **`ENABLE_DOCS`** switch — `/docs`, `/redoc`, `/openapi.json` disabled in production by default
+- **`reload-nginx.sh`** certificate renewal hook (`certbot renew --deploy-hook`/`acme.sh --reloadcmd`)
+- nginx: HSTS header, `server_tokens off`, access logs disabled (the path prefix never appears in logs), `client_max_body_size 1m`
+- Docker/compose now forwards target env vars (`ENVIRONMENT`, `JWT_SECRET`, `CORS_ORIGINS`, …) from `.env` with sensible defaults
+
+### Hardening
+- **Request body size limit** — 1 MB, oversized bodies rejected with `413 Payload too large` (matches nginx limit)
+
+### Developer Experience
+- **Bruno manual API test collection** (`bruno/`) — 49 requests with assertion scripts across auth/debts/payments/rate-limiting, plus a dedicated `dev` environment
+- Production-config unit tests (JWT secret + prefix requirements, `api_path_prefix()` helper), tests for docs toggle and 413 body limit
+- README + AGENTS.md updated with the production deployment checklist and Bruno usage
+
 ## [0.2.0] — 2026-08-20
 
 ### Security hardening

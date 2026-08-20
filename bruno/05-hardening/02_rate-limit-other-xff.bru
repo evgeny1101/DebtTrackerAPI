@@ -1,0 +1,26 @@
+meta {
+  name: Rate limit — other IP free (expect 401)
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/auth/login
+  body: json
+  auth: none
+}
+
+headers {
+  X-Forwarded-For: 198.51.100.7
+}
+
+body:json {
+  {
+    "username": "alice",
+    "password": "wrongpass"
+  }
+}
+
+script:post-response {
+  if (res.status !== 401) throw new Error("Expected 401, got " + res.status);
+}

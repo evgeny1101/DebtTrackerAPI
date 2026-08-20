@@ -1,0 +1,17 @@
+meta {
+  name: Health
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/health
+  body: none
+  auth: none
+}
+
+script:post-response {
+  if (res.status !== 200 || res.body.status !== "ok") {
+    throw new Error("Expected 200 + status ok");
+  }
+}

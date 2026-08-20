@@ -1,0 +1,29 @@
+meta {
+  name: Create debt Coffee (expect 201)
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/debts
+  body: json
+  auth: bearer
+}
+
+body:json {
+  {
+    "name": "Coffee",
+    "debtType": "I_OWE",
+    "initialAmount": 1000
+  }
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+script:post-response {
+  if (res.status !== 201) throw new Error("Expected 201, got " + res.status);
+  if (res.body.currentAmount !== 1000) throw new Error("currentAmount should equal initialAmount");
+  bru.setEnvVar("debtId", res.body.id);
+}
