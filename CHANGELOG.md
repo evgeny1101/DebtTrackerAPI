@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.0] — 2026-09-10
+
+### VK ID sign-in
+- **`POST /api/auth/vk`** — authenticate/sign-up via VK ID and receive the same access + refresh JWTs as the password flow
+- Public-app OAuth: PKCE (`codeVerifier`), `code`/`redirectUri`/`deviceId`/`state` passed through to `https://id.vk.ru/oauth2/auth`, profile fetched via `/oauth2/user_info`
+- **Auto-provisioning**: unknown VK accounts create a user with synthetic `username = vk_<vkId>`, `passwordHash = NULL`, storing `email`/`fullName` from the VK profile
+- New nullable `users` columns: `vkId` (unique), `email`, `fullName`; `passwordHash` now nullable. Migration `003`
+- `username` prefix `vk_` reserved at registration (409 "Username not allowed"); suffix fallback (B) guards against legacy collisions
+- Password login rejects VK-only users (no password hash)
+- New `app/vk.py` client (`httpx`), `VK_CLIENT_ID` env (empty → endpoint returns 503), rate-limited 5/min
+- Test suite grown to 60 tests (7 new VK tests), docs and `.env.example`/`docker-compose.yml` updated
+
 ## [0.3.0] — 2026-08-20
 
 ### Production deployment

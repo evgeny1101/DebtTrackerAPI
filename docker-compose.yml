@@ -16,6 +16,7 @@ services:
       - CORS_ORIGINS=${CORS_ORIGINS:-}
       - API_PATH_PREFIX=${API_PATH_PREFIX:-}
       - ENABLE_DOCS=${ENABLE_DOCS:-}
+      - VK_CLIENT_ID=${VK_CLIENT_ID:-}
     networks:
       - internal
     restart: unless-stopped

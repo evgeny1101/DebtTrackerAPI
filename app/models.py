@@ -9,7 +9,10 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     username = Column(String, nullable=False, unique=True, index=True)
-    passwordHash = Column(String, nullable=False)
+    passwordHash = Column(String, nullable=True)
+    vkId = Column(String, nullable=True, unique=True, index=True)
+    email = Column(String, nullable=True)
+    fullName = Column(String, nullable=True)
     createdAt = Column(BigInteger, nullable=False)
 
     debts = relationship("Debt", back_populates="user", cascade="all, delete-orphan")

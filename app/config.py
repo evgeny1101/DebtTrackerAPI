@@ -10,6 +10,7 @@ REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "30"))
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 CORS_ORIGINS = [o.strip() for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip()]
 API_PATH_PREFIX = os.getenv("API_PATH_PREFIX", "").strip("/")
+VK_CLIENT_ID = os.getenv("VK_CLIENT_ID", "").strip()
 _ENABLE_DOCS = os.getenv("ENABLE_DOCS", "").strip()
 if not _ENABLE_DOCS:
     _ENABLE_DOCS = "true" if ENVIRONMENT != "production" else "false"

@@ -18,6 +18,14 @@ class UserLogin(BaseModel):
     password: str
 
 
+class VKAuthRequest(BaseModel):
+    code: str = Field(..., min_length=1)
+    redirectUri: str
+    codeVerifier: str = Field(..., min_length=43, max_length=128)
+    deviceId: str = Field(..., min_length=1)
+    state: str | None = None
+
+
 class UserResponse(BaseModel):
     id: int
     username: str

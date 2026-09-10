@@ -43,7 +43,7 @@ openssl rand -hex 32
 | `docker compose exec api alembic revision --autogenerate -m "..."` | Generate new migration |
 | `docker compose exec api alembic upgrade head` | Apply migrations manually |
 | `docker compose exec api pip install -r requirements-dev.txt` | Install dev deps (pytest, ruff, httpx) once |
-| `docker compose exec api python -m pytest tests/ -v` | Run test suite (53 tests) |
+| `docker compose exec api python -m pytest tests/ -v` | Run test suite (60 tests) |
 | `docker compose exec api python -m ruff check .` | Lint all Python files |
 | `docker compose exec api python -m ruff check --fix .` | Auto-fix lint issues |
 | `docker compose exec api python -m ruff format --check .` | Check formatting |
@@ -150,6 +150,7 @@ Request → Router (validates with Pydantic, extracts current_user from JWT)
 | `CORS_ORIGINS` | (empty) | Comma-separated allowed origins; requests from other origins are rejected |
 | `API_PATH_PREFIX` | (empty) | Unguessable base path for all API routes (e.g. `openssl rand -base64 32`). Production requires >= 32 chars; embed it in the mobile app at build time |
 | `ENABLE_DOCS` | auto | `true` in dev, `false` in production by default; controls `/docs`, `/redoc`, `/openapi.json` |
+| `VK_CLIENT_ID` | (empty) | VK ID app client id (public app). Empty disables `/api/auth/vk` (returns 503) |
 | `CERT_DIR` | `/root/cert` | Host dir with `ip/fullchain.pem` + `ip/privkey.pem`, mounted into nginx (proxy profile) |
 
 ---
@@ -167,6 +168,7 @@ Request → Router (validates with Pydantic, extracts current_user from JWT)
 | `POST` | `/api/auth/login` | Login → accessToken + refreshToken. Rate-limited: 5/min |
 | `POST` | `/api/auth/refresh` | Exchange refreshToken → new pair (old token invalidated) |
 | `POST` | `/api/auth/logout` | Invalidate refreshToken. Requires Bearer token |
+| `POST` | `/api/auth/vk` | VK ID sign-in/sign-up. Body: `code`, `redirectUri`, `codeVerifier`, `deviceId`, `state?`. Rate-limited: 5/min |
 
 ### Debts (Bearer token required)
 
@@ -249,7 +251,10 @@ Atomic in one `db.commit()`:
 users
 ├── id           INTEGER PK AUTOINCREMENT
 ├── username     TEXT UNIQUE NOT NULL
-├── passwordHash TEXT NOT NULL      (bcrypt)
+├── passwordHash TEXT          (bcrypt, NULL for VK users)
+├── vkId         TEXT UNIQUE   (VK ID link, NULL for password users)
+├── email        TEXT          (from VK profile)
+├── fullName     TEXT          (from VK profile)
 └── createdAt    BIGINT NOT NULL    (unix millis)
 
 refresh_tokens
@@ -281,7 +286,7 @@ payments
 
 ## Testing
 
-### Automated (pytest — 53 tests)
+### Automated (pytest — 60 tests)
 
 ```bash
 # Install dev deps inside container (first time)
@@ -372,6 +377,7 @@ Or use Swagger UI: `http://localhost:8000/docs`
 - `POST /api/auth/register` — 5 requests/minute per IP
 - `POST /api/auth/refresh` — 5 requests/minute per IP
 - `POST /api/auth/logout` — 10 requests/minute per IP
+- `POST /api/auth/vk` — 5 requests/minute per IP
 - Key: client IP from `X-Forwarded-For` (set by reverse proxy) with fallback to socket IP. The proxy MUST overwrite `X-Forwarded-For` with the real client IP (never append client-supplied values) — otherwise spoofing/rate-limit bypass.
 - Configurable: edit `@limiter.limit(...)` decorators in `app/routers/auth.py`
 
@@ -438,7 +444,7 @@ All versions pinned in `requirements.txt` — update deliberately, run `pip-audi
 GitHub Actions workflow triggers on `git tag v*` (not on push to main):
 
 ```
-git tag v0.1.0 → Lint (ruff) → Test (pytest, 53 tests) → Security (pip-audit) → Build & Push to ghcr.io
+git tag v0.1.0 → Lint (ruff) → Test (pytest, 60 tests) → Security (pip-audit) → Build & Push to ghcr.io
 ```
 
 Docker images published at `ghcr.io/evgeny1101/debttrackerapi` with tags:

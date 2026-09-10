@@ -1,6 +1,6 @@
 [project]
 name = "debttracker-api"
-version = "0.3.0"
+version = "0.4.0"
 description = "REST API for DebtTracker Android app"
 requires-python = ">=3.12"
 dependencies = [
