@@ -28,7 +28,20 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    bind = op.get_bind()
+    has_null_password = bind.scalar(
+        sa.text("SELECT COUNT(*) FROM users WHERE passwordHash IS NULL")
+    )
+    if has_null_password:
+        raise RuntimeError(
+            "Cannot downgrade: VK-only users with NULL passwordHash exist. "
+            "Remove or convert them before downgrading."
+        )
+
     op.drop_index("ix_users_vkId", table_name="users")
-    op.drop_column("users", "fullName")
-    op.drop_column("users", "email")
-    op.drop_column("users", "vkId")
+
+    with op.batch_alter_table("users") as batch_op:
+        batch_op.drop_column("vkId")
+        batch_op.drop_column("email")
+        batch_op.drop_column("fullName")
+        batch_op.alter_column("passwordHash", existing_type=sa.String(), nullable=False)

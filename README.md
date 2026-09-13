@@ -36,14 +36,15 @@ See [Deployment](#deployment-production) in AGENTS.md for the full production ch
 ## Features
 
 - JWT auth with access + refresh tokens (token rotation)
+- VK ID sign-in/sign-up (PKCE + `state` verified on the Android client)
 - Multi-user data isolation — each user sees only their own debts
 - Atomic payment transactions: check → insert → deduct `currentAmount`
 - Payment deletion restores `currentAmount`
 - Debt editing with automatic `currentAmount` recalculation
-- Rate limiting on auth endpoints (login/register/refresh 5 req/min, logout 10 req/min per IP)
+- Rate limiting on auth endpoints (login/register/refresh/vk 5 req/min, logout 10 req/min per IP)
 - Refresh tokens stored as SHA-256 hashes (raw never persisted)
 - Structured logging (`LOG_LEVEL` env variable)
-- 53 automated tests, Swagger auto-docs, Ruff linting
+- 75 automated tests, Swagger auto-docs, Ruff linting
 
 ## Android App
 
@@ -51,7 +52,7 @@ This API serves the [DebtTracker Android app](https://github.com/ShAlexandra/Deb
 
 ## Tech Stack
 
-**FastAPI** · **SQLAlchemy** · **SQLite** · **Alembic** · **Docker** · **JWT** · **bcrypt** · **slowapi** · **Ruff**
+**FastAPI** · **SQLAlchemy** · **SQLite** · **Alembic** · **Docker** · **JWT** · **bcrypt** · **slowapi** · **httpx** · **Ruff**
 
 ## Environment Variables
 
@@ -64,6 +65,7 @@ This API serves the [DebtTracker Android app](https://github.com/ShAlexandra/Deb
 | `CORS_ORIGINS` | (empty) | Comma-separated allowed origins; other origins rejected |
 | `API_PATH_PREFIX` | (empty) | Unguessable prefix for all API routes; production requires >= 32 chars |
 | `ENABLE_DOCS` | auto | `true` in dev, `false` in production; controls `/docs` and `/openapi.json` |
+| `VK_CLIENT_ID` | (empty) | VK ID app client id (public app). Empty disables `/api/auth/vk` (returns 503) |
 | `CERT_DIR` | `/root/cert` | Host dir with `ip/fullchain.pem` + `ip/privkey.pem` for nginx |
 
 ## Project Structure
@@ -75,9 +77,10 @@ DebtTrackerAPI/
 │   ├── models.py            # SQLAlchemy ORM: User, RefreshToken, Debt, Payment
 │   ├── schemas.py           # Pydantic request/response models
 │   ├── auth.py              # JWT encode/decode, bcrypt hash/verify
+│   ├── vk.py                # VK ID OAuth client (code exchange + user_info)
 │   ├── routers/             # HTTP endpoints (auth, debts, payments)
 │   └── crud/                # Business logic + DB queries + transactions
-├── tests/                   # 53 pytest tests (auth, debts, payments)
+├── tests/                   # 75 pytest tests (auth, VK ID, debts, payments, config)
 ├── alembic/                 # DB migrations
 ├── Dockerfile + docker-compose.yml
 └── .opencode/               # OpenCode skills
@@ -91,7 +94,7 @@ docker compose exec api pip install -q -r requirements-dev.txt
 docker compose exec api python -m pytest tests/ -v
 ```
 
-60 tests covering auth (incl. VK ID), CRUD, payments, user isolation, and business logic.
+75 tests covering auth (incl. VK ID), CRUD, payments, user isolation, and business logic.
 
 ## Linting
 

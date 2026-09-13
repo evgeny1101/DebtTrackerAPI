@@ -43,7 +43,7 @@ openssl rand -hex 32
 | `docker compose exec api alembic revision --autogenerate -m "..."` | Generate new migration |
 | `docker compose exec api alembic upgrade head` | Apply migrations manually |
 | `docker compose exec api pip install -r requirements-dev.txt` | Install dev deps (pytest, ruff, httpx) once |
-| `docker compose exec api python -m pytest tests/ -v` | Run test suite (60 tests) |
+| `docker compose exec api python -m pytest tests/ -v` | Run test suite (75 tests) |
 | `docker compose exec api python -m ruff check .` | Lint all Python files |
 | `docker compose exec api python -m ruff check --fix .` | Auto-fix lint issues |
 | `docker compose exec api python -m ruff format --check .` | Check formatting |
@@ -67,6 +67,7 @@ DebtTrackerAPI/
 │   ├── models.py            # User, RefreshToken, Debt, Payment (camelCase columns)
 │   ├── schemas.py           # Pydantic request/response models
 │   ├── auth.py              # JWT encode/decode, bcrypt hash/verify
+│   ├── vk.py                # VK ID OAuth client (code exchange + user_info)
 │   ├── limiter.py           # slowapi limiter instance
 │   ├── dependencies.py      # get_db (yield session), get_current_user (Bearer → User)
 │   ├── crud/
@@ -75,21 +76,24 @@ DebtTrackerAPI/
 │   │   └── payments.py      # Atomic record (check→insert→deduct) and delete (restore)
 │   └── routers/
 │       ├── __init__.py
-│       ├── auth.py          # POST /register, /login, /refresh, /logout
+│       ├── auth.py          # POST /register, /login, /refresh, /logout, /vk
 │       ├── debts.py         # /api/debts/* — 8 endpoints
 │       └── payments.py      # /api/debts/:id/payments/*, /api/payments
 ├── tests/
 │   ├── __init__.py
 │   ├── conftest.py           # Fixtures: temp SQLite DB, TestClient, disable slowapi
-│   ├── test_auth.py          # 13 tests: register, login, refresh, logout, 401/409
+│   ├── test_auth.py          # 19 tests: register, login, refresh, logout, 401/409
+│   ├── test_vk.py            # 22 tests: VK sign-in, profile sync, migration 003
 │   ├── test_debts.py         # 17 tests: CRUD, active filter, reminders, recalc
-│   └── test_payments.py      # 11 tests: record, delete, restore, 400 when fully paid
+│   ├── test_payments.py      # 11 tests: record, delete, restore, 400 when fully paid
+│   └── test_config.py        # 6 tests: production config validation
 ├── alembic/
 │   ├── env.py               # Overrides DATABASE_URL from app.config
 │   ├── script.py.mako
 │   └── versions/
 │       ├── 001_initial.py   # users, refresh_tokens, debts, payments
-│       └── 002_reset_refresh_tokens.py  # reset sessions (tokens now hashed)
+│       ├── 002_reset_refresh_tokens.py  # reset sessions (tokens now hashed)
+│       └── 003_vk_id.py     # users: vkId/email/fullName, passwordHash nullable
 ├── alembic.ini
 ├── bruno/                       # Manual API test collection (49 requests, dev env)
 ├── Dockerfile               # python:3.12-slim, non-root appuser, PYTHONPATH=/app
@@ -131,7 +135,7 @@ Request → Router (validates with Pydantic, extracts current_user from JWT)
 | Timestamps | `int`, milliseconds since Unix epoch (`int(time.time() * 1000)`) |
 | Amounts | `int` / `BigInteger`, no floats |
 | Error format | `{"detail": "message"}` — FastAPI default |
-| HTTP status codes | 201 (created), 204 (no content), 400 (bad request), 401 (unauthorized), 404 (not found), 409 (conflict) |
+| HTTP status codes | 201 (created), 204 (no content), 400 (bad request), 401 (unauthorized), 404 (not found), 409 (conflict), 502 (VK upstream failure) |
 | Linting | Run `python -m ruff check . && python -m ruff format --check .` inside the container before every commit. Zero errors required |
 
 ---
@@ -209,6 +213,22 @@ Request → Router (validates with Pydantic, extracts current_user from JWT)
    (old refreshToken is deleted — token rotation)
 
 4. POST /logout { refreshToken } + Bearer header → deletes refreshToken from DB
+
+VK ID (POST /api/auth/vk, body: code, redirectUri, codeVerifier, deviceId, state?):
+  a. Android client runs the VK ID SDK authorize flow (PKCE). The SDK generates
+     and validates `state` — the backend never initiates the authorize request and
+     only passes `state` through to the token exchange as a passthrough. Verifying
+     that the returned `state` matches what was sent is the CLIENT's responsibility
+     (login-CSRF protection).
+  b. Backend exchanges code → access_token + user_id, fetches profile via
+     /oauth2/user_info (unmasked email/fullName only if the client requested the
+     `email` scope at authorize; otherwise those fields stay empty).
+  c. Unknown vkId → auto-provision User (username vk_<vkId>, passwordHash NULL),
+     store email/fullName. Known vkId → refresh email/fullName (only overrides
+     with non-empty values).
+  d. Concurrent first sign-in for the same vkId → unique index on vkId wins;
+     the losing request catches IntegrityError, re-queries, and proceeds.
+  e. Transient upstream failures (timeout/5xx) → 502; auth/logic failures → 401.
 ```
 
 ---
@@ -286,7 +306,7 @@ payments
 
 ## Testing
 
-### Automated (pytest — 60 tests)
+### Automated (pytest — 75 tests)
 
 ```bash
 # Install dev deps inside container (first time)
@@ -300,7 +320,8 @@ Tests use a temp-file SQLite database — no effect on production data.
 Coverage: auth (register, login, refresh rotation, logout, expired tokens, refresh
 token hashing, malformed token payload, rate-limit key resolution),
 debts (CRUD, active filter, update recalc, cascade delete, user isolation, reminders),
-payments (record, overpayment clamp, fully-paid error, delete restore, sorting).
+payments (record, overpayment clamp, fully-paid error, delete restore, sorting),
+VK ID (sign-in, profile sync, transient/error mapping, migration upgrade/downgrade).
 
 ### Manual/api — Bruno collection (`bruno/`)
 
@@ -433,6 +454,7 @@ passlib[bcrypt]   # Password hashing
 bcrypt==4.3.0     # Pinned for passlib 1.7.4 compat
 python-jose[cryptography]  # JWT
 slowapi           # Rate limiting
+httpx             # VK ID OAuth client
 ```
 
 All versions pinned in `requirements.txt` — update deliberately, run `pip-audit -r requirements.txt` before release.
@@ -444,7 +466,7 @@ All versions pinned in `requirements.txt` — update deliberately, run `pip-audi
 GitHub Actions workflow triggers on `git tag v*` (not on push to main):
 
 ```
-git tag v0.1.0 → Lint (ruff) → Test (pytest, 60 tests) → Security (pip-audit) → Build & Push to ghcr.io
+git tag v0.1.0 → Lint (ruff) → Test (pytest, 75 tests) → Security (pip-audit) → Build & Push to ghcr.io
 ```
 
 Docker images published at `ghcr.io/evgeny1101/debttrackerapi` with tags:

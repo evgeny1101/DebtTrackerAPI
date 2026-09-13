@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.1] — 2026-09-13
+
+### Fixes / hardening (VK ID sign-in)
+- **`state` stays optional** and is passed through as-is; validating the returned `state` is the Android client/SDK's responsibility (login-CSRF protection). Unmasked `email`/`fullName` only arrive if the client requested the `email` scope at authorize
+- **Malformed VK responses** (non-JSON body, missing `access_token`/`user_id`/`user`, wrong field types) now map to 401 instead of crashing with 500
+- **Transient upstream failures** (network errors, timeouts, HTTP 5xx from VK) map to 502 instead of 401
+- **Concurrent first sign-in** for the same `vkId` handles the unique-index `IntegrityError` — the loser rolls back, re-queries, and continues
+- **Existing VK users get profile refresh** on every sign-in; empty values never overwrite stored `email`/`fullName`
+- **Migration `003` downgrade** is now safe: refuses to run if VK users with `passwordHash = NULL` exist, restores the `NOT NULL` constraint, and runs inside `batch_alter_table`
+- **`httpx` added to `pyproject.toml`** production dependencies (was only in `requirements.txt`)
+- Test suite grown to 75 tests (15 new tests): VK response validation, transient error mapping, profile refresh, username collision, migration upgrade/downgrade
+
 ## [0.4.0] — 2026-09-10
 
 ### VK ID sign-in

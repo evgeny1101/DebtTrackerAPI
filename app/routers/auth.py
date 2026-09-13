@@ -3,6 +3,7 @@ import secrets
 import time
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app import schemas, vk
@@ -17,6 +18,31 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix=f"{api_path_prefix()}/api/auth", tags=["auth"])
 
 _VK_USERNAME_PREFIX = "vk_"
+
+
+def _vk_full_name(profile: dict) -> str | None:
+    first_name = profile.get("first_name") or ""
+    last_name = profile.get("last_name") or ""
+    full_name = " ".join(part for part in (first_name, last_name) if part).strip()
+    return full_name or None
+
+
+def _next_vk_username(db: Session, vk_id: str) -> str:
+    username = f"{_VK_USERNAME_PREFIX}{vk_id}"
+    suffix = 1
+    while db.query(User).filter(User.username == username).first() is not None:
+        username = f"{_VK_USERNAME_PREFIX}{vk_id}_{suffix}"
+        suffix += 1
+    return username
+
+
+def _refresh_vk_profile(user: User, profile: dict) -> None:
+    email = profile.get("email")
+    if isinstance(email, str) and email:
+        user.email = email
+    full_name = _vk_full_name(profile)
+    if full_name:
+        user.fullName = full_name
 
 
 def _issue_tokens(db: Session, user_id: int) -> schemas.TokenResponse:
@@ -113,6 +139,12 @@ def vk_auth(
             data.state,
         )
         profile = vk.get_user_info(token["access_token"])
+    except vk.VKTransientError as exc:
+        logger.warning("VK service unavailable: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="VK service unavailable",
+        ) from exc
     except vk.VKAuthError as exc:
         logger.warning("VK auth failed: %s", exc)
         raise HTTPException(
@@ -124,28 +156,24 @@ def vk_auth(
     user = db.query(User).filter(User.vkId == vk_id).first()
 
     if user is None:
-        first_name = profile.get("first_name", "")
-        last_name = profile.get("last_name", "")
-        full_name = " ".join(part for part in (first_name, last_name) if part).strip() or None
-
-        username = f"{_VK_USERNAME_PREFIX}{vk_id}"
-        suffix = 1
-        while db.query(User).filter(User.username == username).first() is not None:
-            username = f"{_VK_USERNAME_PREFIX}{vk_id}_{suffix}"
-            suffix += 1
-
-        now = int(time.time() * 1000)
         user = User(
-            username=username,
+            username=_next_vk_username(db, vk_id),
             passwordHash=None,
             vkId=vk_id,
             email=profile.get("email"),
-            fullName=full_name,
-            createdAt=now,
+            fullName=_vk_full_name(profile),
+            createdAt=int(time.time() * 1000),
         )
         db.add(user)
-        db.commit()
-        db.refresh(user)
+        try:
+            db.commit()
+        except IntegrityError:
+            db.rollback()
+            user = db.query(User).filter(User.vkId == vk_id).first()
+            if user is None:
+                raise
+    else:
+        _refresh_vk_profile(user, profile)
 
     return _issue_tokens(db, user.id)
 
