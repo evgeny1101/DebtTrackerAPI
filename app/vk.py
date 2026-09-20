@@ -29,6 +29,16 @@ def _parse_json(resp: httpx.Response) -> dict:
     return payload
 
 
+def _vk_error_detail(payload: dict) -> str | None:
+    error = payload.get("error")
+    if not isinstance(error, str) or not error:
+        return None
+    description = payload.get("error_description")
+    if isinstance(description, str) and description:
+        return f"{error}: {description}"
+    return error
+
+
 def exchange_code(
     code: str,
     redirect_uri: str,
@@ -56,16 +66,19 @@ def exchange_code(
         raise VKTransientError(f"VK token exchange returned HTTP {resp.status_code}")
 
     payload = _parse_json(resp)
+    error_detail = _vk_error_detail(payload)
+    if error_detail:
+        raise VKAuthError(f"VK token exchange failed: {error_detail}")
     if resp.status_code != 200:
-        error = "unknown_error"
-        if isinstance(payload.get("error"), str):
-            error = payload["error"]
-        raise VKAuthError(f"VK token exchange failed: {error}")
+        raise VKAuthError(f"VK token exchange failed: HTTP {resp.status_code}")
 
     access_token = payload.get("access_token")
     user_id = payload.get("user_id")
     if not isinstance(access_token, str) or not access_token or user_id is None:
-        raise VKAuthError("VK token exchange response is missing access_token or user_id")
+        raise VKAuthError(
+            "VK token exchange response is missing access_token or user_id; "
+            f"VK response fields: {sorted(payload.keys())}"
+        )
 
     return payload
 
@@ -85,15 +98,18 @@ def get_user_info(access_token: str) -> dict:
         raise VKTransientError(f"VK user_info returned HTTP {resp.status_code}")
 
     payload = _parse_json(resp)
+    error_detail = _vk_error_detail(payload)
+    if error_detail:
+        raise VKAuthError(f"VK user_info failed: {error_detail}")
     if resp.status_code != 200:
-        error = "unknown_error"
-        if isinstance(payload.get("error"), str):
-            error = payload["error"]
-        raise VKAuthError(f"VK user_info failed: {error}")
+        raise VKAuthError(f"VK user_info failed: HTTP {resp.status_code}")
 
     user = payload.get("user")
     if not isinstance(user, dict):
-        raise VKAuthError("VK user_info response is missing a valid user object")
+        raise VKAuthError(
+            "VK user_info response is missing a valid user object; "
+            f"VK response fields: {sorted(payload.keys())}"
+        )
 
     for field in ("user_id", "first_name", "last_name"):
         value = user.get(field)

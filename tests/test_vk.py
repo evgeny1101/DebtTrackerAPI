@@ -309,6 +309,30 @@ def test_exchange_code_missing_access_token(monkeypatch):
         vk.exchange_code("code", "https://app.example/cb", "a" * 43, "dev1")
 
 
+def test_exchange_code_error_with_http_200(monkeypatch):
+    def fake_post(url, data=None, timeout=None):
+        return _FakeResponse(
+            200, json.dumps({"error": "invalid_client", "error_description": "app not found"})
+        )
+
+    monkeypatch.setattr("app.vk.httpx.post", fake_post)
+    monkeypatch.setattr("app.vk.VK_CLIENT_ID", "test-client-id")
+
+    with pytest.raises(VKAuthError, match="invalid_client: app not found"):
+        vk.exchange_code("code", "https://app.example/cb", "a" * 43, "dev1")
+
+
+def test_exchange_code_missing_access_token_lists_fields(monkeypatch):
+    def fake_post(url, data=None, timeout=None):
+        return _FakeResponse(200, json.dumps({"state": "s" * 32}))
+
+    monkeypatch.setattr("app.vk.httpx.post", fake_post)
+    monkeypatch.setattr("app.vk.VK_CLIENT_ID", "test-client-id")
+
+    with pytest.raises(VKAuthError, match="VK response fields.*state"):
+        vk.exchange_code("code", "https://app.example/cb", "a" * 43, "dev1")
+
+
 def test_get_user_info_success(monkeypatch):
     def fake_post(url, data=None, timeout=None):
         assert url == VK_USER_INFO_URL
@@ -353,6 +377,19 @@ def test_get_user_info_error_response(monkeypatch):
     monkeypatch.setattr("app.vk.VK_CLIENT_ID", "test-client-id")
 
     with pytest.raises(VKAuthError):
+        vk.get_user_info("tok")
+
+
+def test_get_user_info_error_with_http_200(monkeypatch):
+    def fake_post(url, data=None, timeout=None):
+        return _FakeResponse(
+            200, json.dumps({"error": "invalid_token", "error_description": "expired"})
+        )
+
+    monkeypatch.setattr("app.vk.httpx.post", fake_post)
+    monkeypatch.setattr("app.vk.VK_CLIENT_ID", "test-client-id")
+
+    with pytest.raises(VKAuthError, match="invalid_token: expired"):
         vk.get_user_info("tok")
 
 

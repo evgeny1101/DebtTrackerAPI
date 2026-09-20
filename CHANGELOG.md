@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.2] — 2026-09-20
+
+### Fixes / diagnostics (VK ID sign-in)
+- **VK error details surfaced in logs**: `error`/`error_description` from VK responses are now extracted regardless of HTTP status (VK ID returns some errors with HTTP 200). The endpoint still answers 401, but the WARNING log now names the exact VK error and description
+- **Missing-token / missing-user responses log VK response field names** (names only, never values) — previously the response body was silently discarded, masking the root cause
+- No client-visible behavior change (same 401/502 mapping); +3 tests → 78 total
+
 ## [0.4.1] — 2026-09-13
 
 ### Fixes / hardening (VK ID sign-in)
