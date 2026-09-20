@@ -94,7 +94,7 @@ docker compose exec api pip install -q -r requirements-dev.txt
 docker compose exec api python -m pytest tests/ -v
 ```
 
-75 tests covering auth (incl. VK ID), CRUD, payments, user isolation, and business logic.
+78 tests covering auth (incl. VK ID), CRUD, payments, user isolation, and business logic.
 
 ## Linting
 

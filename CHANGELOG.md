@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.3] — 2026-09-20
+
+### Cleanup
+- **Dropped `passlib`** — password hashing now uses the native `bcrypt` library directly (`hashpw`/`checkpw` in `app/auth.py`). Same `$2b$` hash format, existing password hashes verify without migration; malformed hashes in DB now return `False` instead of raising. Removes the noisy startup warning `error reading bcrypt version` (passlib 1.7.4 is unmaintained and incompatible with bcrypt ≥ 4.1 version introspection)
+- **Silenced `SAWarning` on refresh-token deletes** — `confirm_deleted_rows=False` on the `RefreshToken` mapper (concurrent refresh/logout legitimately deletes an already-removed row)
+- No API or schema changes; docs updated (78 tests)
+
 ## [0.4.2] — 2026-09-20
 
 ### Fixes / diagnostics (VK ID sign-in)

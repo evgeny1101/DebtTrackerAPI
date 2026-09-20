@@ -23,6 +23,7 @@ class User(Base):
 
 class RefreshToken(Base):
     __tablename__ = "refresh_tokens"
+    __mapper_args__ = {"confirm_deleted_rows": False}
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     token = Column(String, nullable=False, unique=True, index=True)

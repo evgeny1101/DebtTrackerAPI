@@ -43,7 +43,7 @@ openssl rand -hex 32
 | `docker compose exec api alembic revision --autogenerate -m "..."` | Generate new migration |
 | `docker compose exec api alembic upgrade head` | Apply migrations manually |
 | `docker compose exec api pip install -r requirements-dev.txt` | Install dev deps (pytest, ruff, httpx) once |
-| `docker compose exec api python -m pytest tests/ -v` | Run test suite (75 tests) |
+| `docker compose exec api python -m pytest tests/ -v` | Run test suite (78 tests) |
 | `docker compose exec api python -m ruff check .` | Lint all Python files |
 | `docker compose exec api python -m ruff check --fix .` | Auto-fix lint issues |
 | `docker compose exec api python -m ruff format --check .` | Check formatting |
@@ -306,7 +306,7 @@ payments
 
 ## Testing
 
-### Automated (pytest — 75 tests)
+### Automated (pytest — 78 tests)
 
 ```bash
 # Install dev deps inside container (first time)
@@ -450,8 +450,7 @@ uvicorn[standard]  # ASGI server
 sqlalchemy        # ORM
 alembic           # Migrations
 pydantic          # Validation
-passlib[bcrypt]   # Password hashing
-bcrypt==4.3.0     # Pinned for passlib 1.7.4 compat
+bcrypt==4.3.0     # Password hashing (native library, replaces passlib)
 python-jose[cryptography]  # JWT
 slowapi           # Rate limiting
 httpx             # VK ID OAuth client
@@ -466,7 +465,7 @@ All versions pinned in `requirements.txt` — update deliberately, run `pip-audi
 GitHub Actions workflow triggers on `git tag v*` (not on push to main):
 
 ```
-git tag v0.1.0 → Lint (ruff) → Test (pytest, 75 tests) → Security (pip-audit) → Build & Push to ghcr.io
+git tag v0.1.0 → Lint (ruff) → Test (pytest, 78 tests) → Security (pip-audit) → Build & Push to ghcr.io
 ```
 
 Docker images published at `ghcr.io/evgeny1101/debttrackerapi` with tags:

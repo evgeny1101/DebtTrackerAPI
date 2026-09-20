@@ -8,4 +8,3 @@ def setup_logging():
     datefmt = "%Y-%m-%d %H:%M:%S"
     logging.basicConfig(level=level, format=fmt, datefmt=datefmt)
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
-    logging.getLogger("passlib").setLevel(logging.WARNING)
