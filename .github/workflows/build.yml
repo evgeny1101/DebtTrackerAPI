@@ -12,9 +12,11 @@ jobs:
       - uses: astral-sh/ruff-action@v3
         with:
           args: "check ."
+          version-file: requirements-dev.txt
       - uses: astral-sh/ruff-action@v3
         with:
           args: "format --check ."
+          version-file: requirements-dev.txt
 
   test:
     needs: lint

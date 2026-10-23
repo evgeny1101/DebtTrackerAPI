@@ -8,8 +8,8 @@ from sqlalchemy.orm import Session
 
 from app import schemas, vk
 from app.auth import create_access_token, hash_password, hash_token, verify_password
-from app.crud import users as users_crud
 from app.config import REFRESH_TOKEN_EXPIRE_DAYS, VK_CLIENT_ID, api_path_prefix
+from app.crud import users as users_crud
 from app.dependencies import get_current_user, get_db
 from app.limiter import limiter
 from app.models import RefreshToken, User
