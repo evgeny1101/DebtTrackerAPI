@@ -1,6 +1,14 @@
 # Changelog
 
+## [0.5.2] — 2026-10-23
+
+### Security audit
+- **Ignored `PYSEC-2026-4298` (CVE-2026-85394)** in `python-jose 3.5.0` — HMAC/DER algorithm confusion applies only when `algorithms` is NOT explicitly restricted at decode. `decode_access_token` passes `algorithms=[JWT_ALGORITHM]` and verifies against a symmetric HS256 secret, so there is no public key for an attacker to forge with. No fixed python-jose release exists (3.5.0 is the last affected version); the ignore is scoped with justification in the workflow, same as the pre-existing `PYSEC-2026-1325` (ecdsa)
+- v0.5.1 withdrawn (CI failed at the pip-audit step, no image was pushed); the ruff CI pin from 0.5.1 ships here
+
 ## [0.5.1] — 2026-10-23
+
+> Superseded by 0.5.2 (pip-audit failure, tag withdrawn before publication)
 
 ### CI
 - **Pinned ruff version in the release workflow** — `ruff-action@v3` could not find a ruff pin in `pyproject.toml` and silently installed the latest ruff (0.17.2), whose stricter isort ordering failed lint on code that 0.16.3 (the dev pin in `requirements-dev.txt`) accepted. The workflow now reads the version from `requirements-dev.txt`; import order in `app/routers/auth.py` normalized so both versions pass
