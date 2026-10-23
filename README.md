@@ -37,14 +37,15 @@ See [Deployment](#deployment-production) in AGENTS.md for the full production ch
 
 - JWT auth with access + refresh tokens (token rotation)
 - VK ID sign-in/sign-up (PKCE + `state` verified on the Android client)
+- Self-service account deletion (`DELETE /api/auth/me`) — wipes debts, payments, and refresh tokens in one transaction
 - Multi-user data isolation — each user sees only their own debts
 - Atomic payment transactions: check → insert → deduct `currentAmount`
 - Payment deletion restores `currentAmount`
 - Debt editing with automatic `currentAmount` recalculation
-- Rate limiting on auth endpoints (login/register/refresh/vk 5 req/min, logout 10 req/min per IP)
+- Rate limiting on auth endpoints (login/register/refresh/vk/delete-account 5 req/min, logout 10 req/min per IP)
 - Refresh tokens stored as SHA-256 hashes (raw never persisted)
 - Structured logging (`LOG_LEVEL` env variable)
-- 75 automated tests, Swagger auto-docs, Ruff linting
+- 84 automated tests, Swagger auto-docs, Ruff linting
 
 ## Android App
 
@@ -80,7 +81,7 @@ DebtTrackerAPI/
 │   ├── vk.py                # VK ID OAuth client (code exchange + user_info)
 │   ├── routers/             # HTTP endpoints (auth, debts, payments)
 │   └── crud/                # Business logic + DB queries + transactions
-├── tests/                   # 75 pytest tests (auth, VK ID, debts, payments, config)
+├── tests/                   # 84 pytest tests (auth, VK ID, debts, payments, config)
 ├── alembic/                 # DB migrations
 ├── Dockerfile + docker-compose.yml
 └── .opencode/               # OpenCode skills
@@ -94,7 +95,7 @@ docker compose exec api pip install -q -r requirements-dev.txt
 docker compose exec api python -m pytest tests/ -v
 ```
 
-78 tests covering auth (incl. VK ID), CRUD, payments, user isolation, and business logic.
+84 tests covering auth (incl. VK ID and account deletion), CRUD, payments, user isolation, and business logic.
 
 ## Linting
 

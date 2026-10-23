@@ -43,7 +43,7 @@ openssl rand -hex 32
 | `docker compose exec api alembic revision --autogenerate -m "..."` | Generate new migration |
 | `docker compose exec api alembic upgrade head` | Apply migrations manually |
 | `docker compose exec api pip install -r requirements-dev.txt` | Install dev deps (pytest, ruff, httpx) once |
-| `docker compose exec api python -m pytest tests/ -v` | Run test suite (78 tests) |
+| `docker compose exec api python -m pytest tests/ -v` | Run test suite (84 tests) |
 | `docker compose exec api python -m ruff check .` | Lint all Python files |
 | `docker compose exec api python -m ruff check --fix .` | Auto-fix lint issues |
 | `docker compose exec api python -m ruff format --check .` | Check formatting |
@@ -73,7 +73,8 @@ DebtTrackerAPI/
 │   ├── crud/
 │   │   ├── __init__.py
 │   │   ├── debts.py         # CRUD + update recalculation, delete cascade
-│   │   └── payments.py      # Atomic record (check→insert→deduct) and delete (restore)
+│   │   ├── payments.py      # Atomic record (check→insert→deduct) and delete (restore)
+│   │   └── users.py         # Account deletion (cascade wipe in one transaction)
 │   └── routers/
 │       ├── __init__.py
 │       ├── auth.py          # POST /register, /login, /refresh, /logout, /vk
@@ -82,7 +83,7 @@ DebtTrackerAPI/
 ├── tests/
 │   ├── __init__.py
 │   ├── conftest.py           # Fixtures: temp SQLite DB, TestClient, disable slowapi
-│   ├── test_auth.py          # 19 tests: register, login, refresh, logout, 401/409
+│   ├── test_auth.py          # 25 tests: register, login, refresh, logout, account deletion, 401/409
 │   ├── test_vk.py            # 22 tests: VK sign-in, profile sync, migration 003
 │   ├── test_debts.py         # 17 tests: CRUD, active filter, reminders, recalc
 │   ├── test_payments.py      # 11 tests: record, delete, restore, 400 when fully paid
@@ -173,6 +174,7 @@ Request → Router (validates with Pydantic, extracts current_user from JWT)
 | `POST` | `/api/auth/refresh` | Exchange refreshToken → new pair (old token invalidated) |
 | `POST` | `/api/auth/logout` | Invalidate refreshToken. Requires Bearer token |
 | `POST` | `/api/auth/vk` | VK ID sign-in/sign-up. Body: `code`, `redirectUri`, `codeVerifier`, `deviceId`, `state?`. Rate-limited: 5/min |
+| `DELETE` | `/api/auth/me` | Delete own account with all data (debts, payments, refresh tokens, single transaction). Requires Bearer token. Rate-limited: 5/min |
 
 ### Debts (Bearer token required)
 
@@ -213,6 +215,11 @@ Request → Router (validates with Pydantic, extracts current_user from JWT)
    (old refreshToken is deleted — token rotation)
 
 4. POST /logout { refreshToken } + Bearer header → deletes refreshToken from DB
+
+5. DELETE /auth/me + Bearer header → deletes the User row in one transaction;
+   ORM cascades wipe all debts, their payments, and refresh tokens. Old access
+   token immediately fails (401 "User not found"), refresh/login fail with 401,
+   `username` is free for re-registration. VK ID account itself is untouched.
 
 VK ID (POST /api/auth/vk, body: code, redirectUri, codeVerifier, deviceId, state?):
   a. Android client runs the VK ID SDK authorize flow (PKCE). The SDK generates
@@ -306,7 +313,7 @@ payments
 
 ## Testing
 
-### Automated (pytest — 78 tests)
+### Automated (pytest — 84 tests)
 
 ```bash
 # Install dev deps inside container (first time)
@@ -317,8 +324,9 @@ docker compose exec api python -m pytest tests/ -v
 ```
 
 Tests use a temp-file SQLite database — no effect on production data.
-Coverage: auth (register, login, refresh rotation, logout, expired tokens, refresh
-token hashing, malformed token payload, rate-limit key resolution),
+Coverage: auth (register, login, refresh rotation, logout, account deletion with
+cascade wipe, expired tokens, refresh token hashing, malformed token payload,
+rate-limit key resolution),
 debts (CRUD, active filter, update recalc, cascade delete, user isolation, reminders),
 payments (record, overpayment clamp, fully-paid error, delete restore, sorting),
 VK ID (sign-in, profile sync, transient/error mapping, migration upgrade/downgrade).
@@ -399,6 +407,7 @@ Or use Swagger UI: `http://localhost:8000/docs`
 - `POST /api/auth/refresh` — 5 requests/minute per IP
 - `POST /api/auth/logout` — 10 requests/minute per IP
 - `POST /api/auth/vk` — 5 requests/minute per IP
+- `DELETE /api/auth/me` — 5 requests/minute per IP
 - Key: client IP from `X-Forwarded-For` (set by reverse proxy) with fallback to socket IP. The proxy MUST overwrite `X-Forwarded-For` with the real client IP (never append client-supplied values) — otherwise spoofing/rate-limit bypass.
 - Configurable: edit `@limiter.limit(...)` decorators in `app/routers/auth.py`
 
@@ -465,7 +474,7 @@ All versions pinned in `requirements.txt` — update deliberately, run `pip-audi
 GitHub Actions workflow triggers on `git tag v*` (not on push to main):
 
 ```
-git tag v0.1.0 → Lint (ruff) → Test (pytest, 78 tests) → Security (pip-audit) → Build & Push to ghcr.io
+git tag v0.1.0 → Lint (ruff) → Test (pytest, 84 tests) → Security (pip-audit) → Build & Push to ghcr.io
 ```
 
 Docker images published at `ghcr.io/evgeny1101/debttrackerapi` with tags:

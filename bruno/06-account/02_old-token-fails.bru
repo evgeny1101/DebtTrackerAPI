@@ -1,0 +1,18 @@
+meta {
+  name: Old token fails after deletion (expect 401)
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/debts
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+script:post-response {
+  if (res.status !== 401) throw new Error("Expected 401, got " + res.status);
+}

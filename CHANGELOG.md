@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.5.0] — 2026-10-23
+
+### Account deletion
+- **`DELETE /api/auth/me`** — user deletes their own account in a single transaction: debts, payments, and refresh tokens cascade via ORM relationships (`db.delete(user)` + commit). RuStore compliance: self-service account removal
+- Works identically for password and VK ID accounts (VK profile itself is untouched — no calls to VK)
+- Old access token stops working immediately (`get_current_user` → 401 "User not found"), refresh and login fail with 401, `username` becomes free for re-registration
+- New `app/crud/users.py` (`delete_user`); INFO log contains only the numeric user id — no username/email/vkId
+- Rate-limited 5/min per IP like login/register; no schema changes or migrations
+- Test suite grown to 84 tests (6 new): cascade wipe, credential invalidation, isolation, username reuse, VK account deletion
+- Bruno collection: `06-account/` folder appended (runs last — deletion invalidates the session used by earlier folders)
+
 ## [0.4.3] — 2026-09-20
 
 ### Cleanup

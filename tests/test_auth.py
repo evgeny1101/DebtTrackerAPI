@@ -186,3 +186,127 @@ def test_rate_limit_key_falls_back_to_client_host():
 
     scope = {"type": "http", "headers": [], "client": ("1.2.3.4", 1234)}
     assert _client_key(Request(scope)) == "1.2.3.4"
+
+
+def test_delete_account_cascades_all_data(client):
+    reg = client.post("/api/auth/register", json={"username": "casc", "password": "secret123"})
+    token = reg.json()["accessToken"]
+
+    debt = client.post(
+        "/api/debts",
+        json={"name": "Book", "debtType": "I_OWE", "initialAmount": 500},
+        headers={"Authorization": f"Bearer {token}"},
+    ).json()
+    client.post(
+        f"/api/debts/{debt['id']}/payments",
+        json={"amount": 100},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    from app.database import SessionLocal
+    from app.models import User
+
+    db = SessionLocal()
+    user_id = db.query(User).filter(User.username == "casc").first().id
+    db.close()
+
+    res = client.delete("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert res.status_code == 204
+
+    from app.models import Debt, Payment, RefreshToken
+
+    db = SessionLocal()
+    try:
+        assert db.query(User).filter(User.username == "casc").first() is None
+        assert db.query(Debt).filter(Debt.id == debt["id"]).first() is None
+        assert db.query(Payment).filter(Payment.debtId == debt["id"]).first() is None
+        assert db.query(RefreshToken).filter(RefreshToken.userId == user_id).first() is None
+    finally:
+        db.close()
+
+
+def test_delete_account_invalidates_credentials(client):
+    reg = client.post("/api/auth/register", json={"username": "gone", "password": "secret123"})
+    token = reg.json()["accessToken"]
+    refresh = reg.json()["refreshToken"]
+
+    res = client.delete("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert res.status_code == 204
+
+    res = client.get("/api/debts", headers={"Authorization": f"Bearer {token}"})
+    assert res.status_code == 401
+
+    res = client.post("/api/auth/refresh", json={"refreshToken": refresh})
+    assert res.status_code == 401
+
+    res = client.post("/api/auth/login", json={"username": "gone", "password": "secret123"})
+    assert res.status_code == 401
+
+    res = client.delete("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert res.status_code == 401
+
+
+def test_delete_account_without_token(client):
+    res = client.delete("/api/auth/me")
+    assert res.status_code == 401
+
+
+def test_delete_account_isolation(client):
+    reg_a = client.post("/api/auth/register", json={"username": "user_a", "password": "secret123"})
+    token_a = reg_a.json()["accessToken"]
+    reg_b = client.post("/api/auth/register", json={"username": "user_b", "password": "secret123"})
+    token_b = reg_b.json()["accessToken"]
+
+    debt_b = client.post(
+        "/api/debts",
+        json={"name": "Bob debt", "debtType": "I_OWE", "initialAmount": 300},
+        headers={"Authorization": f"Bearer {token_b}"},
+    ).json()
+
+    res = client.delete("/api/auth/me", headers={"Authorization": f"Bearer {token_a}"})
+    assert res.status_code == 204
+
+    res = client.get("/api/debts", headers={"Authorization": f"Bearer {token_b}"})
+    assert res.status_code == 200
+    assert any(d["id"] == debt_b["id"] for d in res.json())
+
+
+def test_delete_account_frees_username(client):
+    reg = client.post("/api/auth/register", json={"username": "reuse", "password": "secret123"})
+    token = reg.json()["accessToken"]
+
+    res = client.delete("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert res.status_code == 204
+
+    res = client.post("/api/auth/register", json={"username": "reuse", "password": "secret123"})
+    assert res.status_code == 201
+
+
+def test_delete_account_vk_user(client):
+    import time
+
+    from app.auth import create_access_token
+    from app.database import SessionLocal
+    from app.models import User
+
+    db = SessionLocal()
+    user = User(
+        username="vk_123",
+        passwordHash=None,
+        vkId="123",
+        createdAt=int(time.time() * 1000),
+    )
+    db.add(user)
+    db.commit()
+    user_id = user.id
+    db.close()
+
+    token = create_access_token(user_id)
+    res = client.delete("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert res.status_code == 204
+
+    db = SessionLocal()
+    try:
+        assert db.query(User).filter(User.vkId == "123").first() is None
+    finally:
+        db.close()

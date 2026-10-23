@@ -1,0 +1,18 @@
+meta {
+  name: Delete account (expect 204)
+  type: http
+  seq: 1
+}
+
+delete {
+  url: {{baseUrl}}/api/auth/me
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+script:post-response {
+  if (res.status !== 204) throw new Error("Expected 204, got " + res.status);
+}

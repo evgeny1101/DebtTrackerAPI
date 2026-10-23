@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app import schemas, vk
 from app.auth import create_access_token, hash_password, hash_token, verify_password
+from app.crud import users as users_crud
 from app.config import REFRESH_TOKEN_EXPIRE_DAYS, VK_CLIENT_ID, api_path_prefix
 from app.dependencies import get_current_user, get_db
 from app.limiter import limiter
@@ -222,4 +223,15 @@ def logout(
     if stored:
         db.delete(stored)
         db.commit()
+    return None
+
+
+@router.delete("/me", status_code=204)
+@limiter.limit("5/minute")
+def delete_account(
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    users_crud.delete_user(db, current_user)
     return None
