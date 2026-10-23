@@ -1,6 +1,14 @@
 # Changelog
 
+## [0.5.1] — 2026-10-23
+
+### CI
+- **Pinned ruff version in the release workflow** — `ruff-action@v3` could not find a ruff pin in `pyproject.toml` and silently installed the latest ruff (0.17.2), whose stricter isort ordering failed lint on code that 0.16.3 (the dev pin in `requirements-dev.txt`) accepted. The workflow now reads the version from `requirements-dev.txt`; import order in `app/routers/auth.py` normalized so both versions pass
+- v0.5.0 tag/release withdrawn immediately after the lint failure — no image was pushed, nobody consumed it; account deletion ships in this release
+
 ## [0.5.0] — 2026-10-23
+
+> Superseded by 0.5.1 (CI lint failure, tag withdrawn before publication)
 
 ### Account deletion
 - **`DELETE /api/auth/me`** — user deletes their own account in a single transaction: debts, payments, and refresh tokens cascade via ORM relationships (`db.delete(user)` + commit). RuStore compliance: self-service account removal
